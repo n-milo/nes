@@ -7,9 +7,9 @@
 
 extern const Instruction instruction_lookup_table[256];
 
-bool R6502::clock() {
+bool R6502::clock(Bus &bus) {
     if (cycles == 0) {
-        uint8 opcode = read(pc++);
+        uint8 opcode = read(bus, pc++);
         last_executed_opcode = opcode;
         auto &instr = instruction_lookup_table[opcode];
         cycles = instr.cycle_count;
@@ -31,7 +31,7 @@ bool R6502::clock() {
             // (both have an 8-bit operand immediately following the instruction)
             // for relative instructions, the addition is handled by the operation execution logic, not the
             // addressing logic
-            operand = read(pc++);
+            operand = read(bus, pc++);
             break;
 
         case IMP: // instruction operand is implied (e.g. RTS)
@@ -39,13 +39,13 @@ bool R6502::clock() {
             break;
 
         default:
-            addr = calculate_address(instr.addr_mode, page_crossed);
-            operand = read(*addr);
+            addr = calculate_address(bus, instr.addr_mode, page_crossed);
+            operand = read(bus, *addr);
             break;
 
         }
 
-        bool needs_cycle_for_computing = calculate_operation(instr.opcode, operand, addr);
+        bool needs_cycle_for_computing = calculate_operation(bus, instr.opcode, operand, addr);
         if (page_crossed && needs_cycle_for_computing)
             cycles++;
     }
@@ -54,44 +54,44 @@ bool R6502::clock() {
     return cycles == 0;
 }
 
-void R6502::reset() {
+void R6502::reset(Bus &bus) {
     a = x = y = 0;
     sp = 0xFD;
     status = U;
 
-    uint16 lo = read(0xFFFC);
-    uint16 hi = read(0xFFFD);
+    uint16 lo = read(bus, 0xFFFC);
+    uint16 hi = read(bus, 0xFFFD);
     pc = (hi << 8) | lo;
 
     cycles = 8;
 }
 
-void R6502::irq() {
+void R6502::irq(Bus &bus) {
     if (status & I) {
-        do_interrupt(0xFFFE);
+        do_interrupt(bus, 0xFFFE);
         cycles = 7;
     }
 }
 
-void R6502::nmi() {
-    do_interrupt(0xFFFA);
+void R6502::nmi(Bus &bus) {
+    do_interrupt(bus, 0xFFFA);
     cycles = 8;
 }
 
-void R6502::do_interrupt(uint16 vector) {
-    write(0x100 + sp--, pc >> 8);
-    write(0x100 + sp--, pc & 0xFF);
+void R6502::do_interrupt(Bus &bus, uint16 vector) {
+    write(bus, 0x100 + sp--, pc >> 8);
+    write(bus, 0x100 + sp--, pc & 0xFF);
 
     status &= ~B;
     status |= (U | I);
-    write(0x100 + sp--, status);
+    write(bus, 0x100 + sp--, status);
 
-    uint16 lo = read(vector);
-    uint16 hi = read(vector + 1);
+    uint16 lo = read(bus, vector);
+    uint16 hi = read(bus, vector + 1);
     pc = (hi << 8) | lo;
 }
 
-uint16 R6502::calculate_address(AddrMode addr_mode, bool &page_crossed) {
+uint16 R6502::calculate_address(const Bus &bus, AddrMode addr_mode, bool &page_crossed) {
     // https://www.nesdev.org/wiki/CPU_addressing_modes
 
     page_crossed = false;
@@ -107,23 +107,23 @@ uint16 R6502::calculate_address(AddrMode addr_mode, bool &page_crossed) {
               std::string(magic_enum::enum_name(addr_mode)).c_str());
 
     case ABS: { // absolute addressing (read 2 bytes for address)
-        uint16 lo = read(pc++);
-        uint16 hi = read(pc++);
+        uint16 lo = read(bus, pc++);
+        uint16 hi = read(bus, pc++);
         return (hi << 8) | lo;
     }
 
     case ZP0: // zero-page addressing
-        return read(pc++);
+        return read(bus, pc++);
 
     case ZPX: // zero-page + x addressing
-        return (read(pc++) + x) & 0xFF;
+        return (read(bus, pc++) + x) & 0xFF;
 
     case ZPY: // zero-page + y addressing
-        return (read(pc++) + y) & 0xFF;
+        return (read(bus, pc++) + y) & 0xFF;
 
     case ABX: { // absolute addressing + x
-        uint16 lo = read(pc++);
-        uint16 hi = read(pc++);
+        uint16 lo = read(bus, pc++);
+        uint16 hi = read(bus, pc++);
         uint16 addr = ((hi << 8) | lo) + x;
         if ((addr & 0xFF00) != (hi << 8)) {
             // if the +x causes a carry-out on lo, we have crossed a page
@@ -133,8 +133,8 @@ uint16 R6502::calculate_address(AddrMode addr_mode, bool &page_crossed) {
     }
 
     case ABY: { // absolute addressing + y
-        uint16 lo = read(pc++);
-        uint16 hi = read(pc++);
+        uint16 lo = read(bus, pc++);
+        uint16 hi = read(bus, pc++);
         uint16 addr = ((hi << 8) | lo) + y;
         if ((addr & 0xFF00) != (hi << 8)) {
             // same as above
@@ -144,8 +144,8 @@ uint16 R6502::calculate_address(AddrMode addr_mode, bool &page_crossed) {
     }
 
     case IND: { // read a 16-bit pointer at a 16-bit absolute address, then 16-bit value at that address
-        uint16 lo = read(pc++);
-        uint16 hi = read(pc++);
+        uint16 lo = read(bus, pc++);
+        uint16 hi = read(bus, pc++);
         uint16 ptr_addr = ((hi << 8) | lo);
 
         // 6502 has a bug
@@ -153,25 +153,25 @@ uint16 R6502::calculate_address(AddrMode addr_mode, bool &page_crossed) {
         // up creating the 16-bit pointer out of $13FF and $1300. This code simulates that bug.
         uint8 ind_hi;
         if (lo == 0xFF)
-            ind_hi = read(ptr_addr & 0xFF00);
+            ind_hi = read(bus, ptr_addr & 0xFF00);
         else
-            ind_hi = read(ptr_addr + 1);
+            ind_hi = read(bus, ptr_addr + 1);
 
-        uint8 ind_lo = read(ptr_addr);
+        uint8 ind_lo = read(bus, ptr_addr);
         return (ind_hi << 8) | ind_lo;
     }
 
     case IZX: { // read an 8-bit pointer to the zero page and add x
-        uint16 ptr_addr = read(pc++);
-        uint16 ind_lo = read((ptr_addr + x) & 0xFF);
-        uint16 ind_hi = read((ptr_addr + x + 1) & 0xFF);
+        uint16 ptr_addr = read(bus, pc++);
+        uint16 ind_lo = read(bus, (ptr_addr + x) & 0xFF);
+        uint16 ind_hi = read(bus, (ptr_addr + x + 1) & 0xFF);
         return (ind_hi << 8) | ind_lo;
     }
 
     case IZY: { // read a 16-bit pointer (in the zero page) and add y to it
-        uint16 ptr_addr = read(pc++);
-        uint16 lo = read(ptr_addr);
-        uint16 hi = read((ptr_addr + 1) & 0xFF);
+        uint16 ptr_addr = read(bus, pc++);
+        uint16 lo = read(bus, ptr_addr);
+        uint16 hi = read(bus, (ptr_addr + 1) & 0xFF);
         uint16 addr = ((hi << 8) | lo) + y;
         if ((addr & 0xFF00) != (hi << 8)) {
             // same as above
@@ -183,7 +183,8 @@ uint16 R6502::calculate_address(AddrMode addr_mode, bool &page_crossed) {
     }
 }
 
-bool R6502::calculate_operation(Op op,
+bool R6502::calculate_operation(Bus &bus,
+                                Op op,
                                 uint8 operand,
                                 std::optional<uint16> addr) {
 
@@ -213,17 +214,17 @@ bool R6502::calculate_operation(Op op,
 
     case STA: // STore Accumulator
         ASSERT(addr.has_value(), "STA must have an address");
-        write(*addr, a);
+        write(bus, *addr, a);
         return false;
 
     case STX: // STore X register
         ASSERT(addr.has_value(), "STX must have an address");
-        write(*addr, x);
+        write(bus, *addr, x);
         return false;
 
     case STY: // STore Y register
         ASSERT(addr.has_value(), "STY must have an address");
-        write(*addr, y);
+        write(bus, *addr, y);
         return false;
 
     // transfers
@@ -249,21 +250,21 @@ bool R6502::calculate_operation(Op op,
     // stack
 
     case PHA: // PusH Accumulator
-        write(0x100 + sp--, a);
+        write(bus, 0x100 + sp--, a);
         return false;
 
     case PHP:
-        write(0x100 + sp--, status);
+        write(bus, 0x100 + sp--, status);
         return false;
 
     case PLA:
-        a = read(0x100 + ++sp);
+        a = read(bus, 0x100 + ++sp);
         set_flag(Z, a == 0);
         set_flag(N, a & 0x80);
         return false;
 
     case PLP:
-        status = read(0x100 + ++sp);
+        status = read(bus, 0x100 + ++sp);
         return false;
 
     // shift
@@ -274,7 +275,7 @@ bool R6502::calculate_operation(Op op,
         set_flag(Z, result == 0);
         set_flag(N, result & 0x80);
         if (addr.has_value())
-            write(*addr, result);
+            write(bus, *addr, result);
         else // if addr is nullopt, the target must be the accumulator
             a = result;
         return false;
@@ -285,7 +286,7 @@ bool R6502::calculate_operation(Op op,
         set_flag(Z, result == 0);
         set_flag(N, false); // 0 goes into bit 7 so result can never be negative
         if (addr.has_value())
-            write(*addr, result);
+            write(bus, *addr, result);
         else
             a = result;
         return false;
@@ -295,7 +296,7 @@ bool R6502::calculate_operation(Op op,
         result |= (status & C) ? 1 : 0; // carry is shifted into bit 0
         set_flag(C, operand & 0x80); // the original bit 7 is shifted into the carry
         if (addr.has_value())
-            write(*addr, result);
+            write(bus, *addr, result);
         else
             a = result;
         set_flag(Z, result == 0);
@@ -307,7 +308,7 @@ bool R6502::calculate_operation(Op op,
         result |= (status & C) ? (1 << 7) : 0; // carry is shifted into bit 7
         set_flag(C, operand & 0x1); // the original bit 0 is shifted into the carry
         if (addr.has_value())
-            write(*addr, result);
+            write(bus, *addr, result);
         else
             a = result;
         set_flag(Z, result == 0);
@@ -375,7 +376,7 @@ bool R6502::calculate_operation(Op op,
     case DEC:
         ASSERT(addr.has_value(), "DEC must have an address");
         result = operand - 1;
-        write(*addr, result);
+        write(bus, *addr, result);
         set_flag(Z, result == 0);
         set_flag(N, result & 0x80);
         return false;
@@ -395,7 +396,7 @@ bool R6502::calculate_operation(Op op,
     case INC:
         ASSERT(addr.has_value(), "INC must have an address");
         result = operand + 1;
-        write(*addr, result);
+        write(bus, *addr, result);
         set_flag(Z, result == 0);
         set_flag(N, result & 0x80);
         return false;
@@ -415,7 +416,7 @@ bool R6502::calculate_operation(Op op,
     // control
 
     case BRK:
-        irq();
+//        irq(bus);
         TODO("BRK");
 
     case JMP:
@@ -425,21 +426,21 @@ bool R6502::calculate_operation(Op op,
 
     case JSR:
         pc--;
-        write(0x100 + sp--, pc >> 8);
-        write(0x100 + sp--, pc & 0xFF);
+        write(bus, 0x100 + sp--, pc >> 8);
+        write(bus, 0x100 + sp--, pc & 0xFF);
         pc = *addr;
         return false;
 
     case RTI:
-        status = read(0x100 + ++sp);
+        status = read(bus, 0x100 + ++sp);
         status &= ~(B | U);
-        pc = read(0x100 + ++sp);
-        pc |= read(0x100 + ++sp) << 8;
+        pc = read(bus, 0x100 + ++sp);
+        pc |= read(bus, 0x100 + ++sp) << 8;
         return false;
 
     case RTS: // ReTurn from Subroutine
-        pc = read(0x100 + ++sp);
-        pc |= read(0x100 + ++sp) << 8;
+        pc = read(bus, 0x100 + ++sp);
+        pc |= read(bus, 0x100 + ++sp) << 8;
         pc++;
         return false;
 
@@ -549,17 +550,15 @@ uint8 R6502::do_addition(uint8 src_reg, uint8 operand) {
     return ret;
 }
 
-uint8 R6502::read(uint16 addr) {
-    ASSERT(bus, "bus must be connected");
-    return bus->read(addr);
+uint8 R6502::read(const Bus &bus, uint16 addr) {
+    return bus.read(addr);
 }
 
-void R6502::write(uint16 addr, uint8 data) {
-    ASSERT(bus, "bus must be connected");
-    bus->write(addr, data);
+void R6502::write(Bus &bus, uint16 addr, uint8 data) {
+    bus.write(addr, data);
 }
 
-std::map<uint16, std::string> R6502::disassemble(uint16 start, uint16 end) {
+std::map<uint16, std::string> R6502::disassemble(const Bus &bus, uint16 start, uint16 end) {
     std::map<uint16, std::string> strings;
 
     uint16 addr = start;
@@ -567,7 +566,7 @@ std::map<uint16, std::string> R6502::disassemble(uint16 start, uint16 end) {
         std::stringstream ss;
 
         uint16 line_start = addr;
-        uint8 opcode = read(addr++);
+        uint8 opcode = bus.read(addr++);
         auto &instr = instruction_lookup_table[opcode];
         ss << magic_enum::enum_name(instr.opcode) << " ";
 
@@ -580,47 +579,47 @@ std::map<uint16, std::string> R6502::disassemble(uint16 start, uint16 end) {
             buf[0] = 'A';
             break;
         case IMM:
-            snprintf(buf, sizeof buf, "#$%02x", read(addr++));
+            snprintf(buf, sizeof buf, "#$%02x", bus.read(addr++));
             break;
         case ABS:
-            lo = read(addr++);
-            hi = read(addr++);
+            lo = bus.read(addr++);
+            hi = bus.read(addr++);
             snprintf(buf, sizeof buf, "$%04x", (lo | (hi << 8)));
             break;
         case ZP0:
-            snprintf(buf, sizeof buf, "$%02x", read(addr++));
+            snprintf(buf, sizeof buf, "$%02x", bus.read(addr++));
             break;
         case ZPX:
-            snprintf(buf, sizeof buf, "$%02x,X", read(addr++));
+            snprintf(buf, sizeof buf, "$%02x,X", bus.read(addr++));
             break;
         case ZPY:
-            snprintf(buf, sizeof buf, "$%02x,Y", read(addr++));
+            snprintf(buf, sizeof buf, "$%02x,Y", bus.read(addr++));
             break;
         case ABX:
-            lo = read(addr++);
-            hi = read(addr++);
+            lo = bus.read(addr++);
+            hi = bus.read(addr++);
             snprintf(buf, sizeof buf, "$%04x,X", (lo | (hi << 8)));
             break;
         case ABY:
-            lo = read(addr++);
-            hi = read(addr++);
+            lo = bus.read(addr++);
+            hi = bus.read(addr++);
             snprintf(buf, sizeof buf, "$%04x,Y", (lo | (hi << 8)));
             break;
         case IMP:
             break;
         case REL:
-            lo = read(addr++);
+            lo = bus.read(addr++);
             snprintf(buf, sizeof buf, "$%02x [$%04x]", lo, addr + static_cast<int8>(lo));
             break;
         case IZX:
-            snprintf(buf, sizeof buf, "($%02x,X)", read(addr++));
+            snprintf(buf, sizeof buf, "($%02x,X)", bus.read(addr++));
             break;
         case IZY:
-            snprintf(buf, sizeof buf, "($%02x),Y", read(addr++));
+            snprintf(buf, sizeof buf, "($%02x),Y", bus.read(addr++));
             break;
         case IND:
-            lo = read(addr++);
-            hi = read(addr++);
+            lo = bus.read(addr++);
+            hi = bus.read(addr++);
             snprintf(buf, sizeof buf, "($%04x)", (lo | (hi << 8)));
             break;
         }

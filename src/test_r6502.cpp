@@ -89,56 +89,67 @@ std::vector<Trace> load_trace(std::string_view path) {
 class CpuTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        std::string testname = "test00-loadstore";
+        auto tests = {
+                "test00-loadstore", "test01-andorxor"
+        };
 
-        bus = load_rom("6502-tests/hmc-6502/roms/" + testname + ".rom");
-        bus.write(0xFFFC, 0x00);
-        bus.write(0xFFFD, 0xF0);
+        for (auto &test : tests) {
+            auto testname = std::string(test);
+            auto bus = load_rom("6502-tests/hmc-6502/roms/" + testname + ".rom");
+            bus.write(0xFFFC, 0x00);
+            bus.write(0xFFFD, 0xF0);
 
-        bus.cpu.bus = &bus;
-        bus.cpu.reset();
-        bus.cpu.set_flag(I, true);
+            auto traces = load_trace("6502-tests/hmc-6502/expectedResults/" + testname + "-trace.txt");
 
-        traces = load_trace("6502-tests/hmc-6502/expectedResults/" + testname + "-trace.txt");
+            test_cases.emplace_back(std::move(bus), std::move(traces));
+        }
     }
 
-    Bus bus;
-    std::vector<Trace> traces;
+    std::vector<std::pair<Bus, std::vector<Trace>>> test_cases;
 };
 
 TEST_F(CpuTest, DisassemblesCorrectly) {
-    auto disassembly = bus.cpu.disassemble(traces.front().address, traces.back().address);
-    ASSERT_EQ(disassembly.size(), traces.size());
+    for (auto &[bus, traces] : test_cases) {
+        auto disassembly = R6502::disassemble(bus, traces.front().address, traces.back().address);
+        ASSERT_EQ(disassembly.size(), traces.size());
 
-    for (auto &trace : traces) {
-        auto &disassembled = disassembly[trace.address];
-        EXPECT_EQ(disassembled, trace.disassembled);
+        for (auto &trace: traces) {
+            auto &disassembled = disassembly[trace.address];
+            EXPECT_EQ(disassembled, trace.disassembled);
+        }
     }
 }
 
 TEST_F(CpuTest, ExecutesCorrectly) {
-    for (int i = 0; i < 8; i++)
-        bus.cpu.clock(); // startup sequence
+    for (auto &[bus, traces] : test_cases) {
+        R6502 cpu;
+        cpu.reset(bus);
+        cpu.set_flag(I, true);
+        for (int i = 0; i < 8; i++)
+            cpu.clock(bus); // startup sequence
 
-    uint64 clock_time = 0;
-    for (auto &trace : traces) {
-        printf("executing %04x %-16s (x=%02x y=%02x a=%02x sp=%02x pc=%04x clock=%4llu status=%02x)\n", trace.address, trace.disassembled.c_str(), trace.x, trace.y, trace.a, trace.sp, trace.pc, trace.num_clocks, trace.status);
+        uint64 clock_time = 0;
+        for (auto &trace: traces) {
+            printf("executing %04x %-16s (x=%02x y=%02x a=%02x sp=%02x pc=%04x clock=%4llu status=%02x)\n",
+                   trace.address, trace.disassembled.c_str(), trace.x, trace.y, trace.a, trace.sp, trace.pc,
+                   trace.num_clocks, trace.status);
 
-        clock_time++;
-        bus.cpu.clock();
-        while (bus.cpu.cycles > 0) {
             clock_time++;
-            bus.cpu.clock();
-        }
+            cpu.clock(bus);
+            while (cpu.cycles > 0) {
+                clock_time++;
+                cpu.clock(bus);
+            }
 
-        // we just finished an instruction
-        ASSERT_EQ(bus.cpu.last_executed_opcode, trace.opcode);
-        ASSERT_EQ(bus.cpu.x, trace.x);
-        ASSERT_EQ(bus.cpu.y, trace.y);
-        ASSERT_EQ(bus.cpu.a, trace.a);
-        ASSERT_EQ(bus.cpu.sp, trace.sp);
-        ASSERT_EQ(bus.cpu.pc, trace.pc);
-        ASSERT_EQ(clock_time, trace.num_clocks);
-        ASSERT_EQ(bus.cpu.status, trace.status);
+            // we just finished an instruction
+            ASSERT_EQ(cpu.last_executed_opcode, trace.opcode);
+            ASSERT_EQ(cpu.x, trace.x);
+            ASSERT_EQ(cpu.y, trace.y);
+            ASSERT_EQ(cpu.a, trace.a);
+            ASSERT_EQ(cpu.sp, trace.sp);
+            ASSERT_EQ(cpu.pc, trace.pc);
+            ASSERT_EQ(clock_time, trace.num_clocks);
+            ASSERT_EQ(cpu.status, trace.status);
+        }
     }
 }

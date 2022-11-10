@@ -7,7 +7,6 @@
 class Bus {
 
 public:
-    R6502 cpu;
     std::vector<uint8> ram;
 
     Bus() : ram(64 * 1024)
@@ -16,5 +15,5 @@ public:
     ~Bus() = default;
 
     void write(uint16 addr, uint8 data);
-    uint8 read(uint16 addr);
+    uint8 read(uint16 addr) const;
 };
