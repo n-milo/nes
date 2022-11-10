@@ -1,0 +1,144 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <gtest/gtest.h>
+
+#include "r6502.h"
+#include "bus.h"
+
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+struct Trace {
+    uint16 address;
+    uint8 opcode;
+    std::string disassembled;
+    uint8 x, y, a, sp, status;
+    uint16 pc;
+    uint64 num_clocks;
+};
+
+Bus load_rom(std::string_view path) {
+    std::ifstream romfile(path);
+    if (!romfile.is_open()) {
+        throw std::invalid_argument(std::string(path) + " does not exist");
+    }
+
+    std::vector<uint8> rom;
+    std::string line;
+    while (std::getline(romfile, line)) {
+        if (line.rfind("//", 0) == 0 || line.empty()) {
+            // line is a comment or blank
+            continue;
+        }
+
+        uint8 digit = std::stoi(line, nullptr, 16);
+        rom.push_back(digit);
+    }
+
+    Bus bus;
+    std::copy(rom.begin(), rom.end(), bus.ram.begin() + 0xF000);
+
+    return bus;
+}
+
+std::vector<Trace> load_trace(std::string_view path) {
+    std::ifstream tracefile(path);
+    ASSERT(tracefile.is_open(), "file must exist");
+
+    std::vector<Trace> traces;
+    std::string line;
+
+    while (std::getline(tracefile, line)) {
+        if (line.rfind("TRACE>", 0) != 0 || line.empty()) {
+            // line is not a "TRACE>", or it's blank
+            continue;
+        }
+
+        Trace trace;
+
+        trace.disassembled = line.substr(25, 52-25);
+        rtrim(trace.disassembled);
+
+        auto opcode_str = line.substr(12, 2);
+        if (opcode_str == "  ") {
+            // we have the last line
+            break;
+        }
+
+        trace.address = std::stoi(line.substr(7, 4), nullptr, 16);
+        trace.opcode = std::stoi(opcode_str, nullptr, 16);
+        trace.x = std::stoi(line.substr(54, 2), nullptr, 16);
+        trace.y = std::stoi(line.substr(61, 2), nullptr, 16);
+        trace.a = std::stoi(line.substr(69, 2), nullptr, 16);
+        trace.sp = std::stoi(line.substr(78, 2), nullptr, 16);
+        trace.pc = std::stoi(line.substr(85, 4), nullptr, 16);
+        trace.num_clocks = std::stoi(line.substr(106, 16), nullptr, 16);
+        trace.status = std::stoi(line.substr(129, 2), nullptr, 16);
+
+//        printf("%x %s\t\t\t%x %x %x %x %x %llx %x\n", trace.address, trace.disassembled.c_str(), trace.x, trace.y, trace.a, trace.sp, trace.pc, trace.num_clocks, trace.status);
+        traces.push_back(trace);
+    }
+
+    return traces;
+}
+
+class CpuTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        std::string testname = "test00-loadstore";
+
+        bus = load_rom("6502-tests/hmc-6502/roms/" + testname + ".rom");
+        bus.write(0xFFFC, 0x00);
+        bus.write(0xFFFD, 0xF0);
+
+        bus.cpu.bus = &bus;
+        bus.cpu.reset();
+        bus.cpu.set_flag(I, true);
+
+        traces = load_trace("6502-tests/hmc-6502/expectedResults/" + testname + "-trace.txt");
+    }
+
+    Bus bus;
+    std::vector<Trace> traces;
+};
+
+TEST_F(CpuTest, DisassemblesCorrectly) {
+    auto disassembly = bus.cpu.disassemble(traces.front().address, traces.back().address);
+    ASSERT_EQ(disassembly.size(), traces.size());
+
+    for (auto &trace : traces) {
+        auto &disassembled = disassembly[trace.address];
+        EXPECT_EQ(disassembled, trace.disassembled);
+    }
+}
+
+TEST_F(CpuTest, ExecutesCorrectly) {
+    for (int i = 0; i < 8; i++)
+        bus.cpu.clock(); // startup sequence
+
+    uint64 clock_time = 0;
+    for (auto &trace : traces) {
+        printf("executing %04x %-16s (x=%02x y=%02x a=%02x sp=%02x pc=%04x clock=%4llu status=%02x)\n", trace.address, trace.disassembled.c_str(), trace.x, trace.y, trace.a, trace.sp, trace.pc, trace.num_clocks, trace.status);
+
+        clock_time++;
+        bus.cpu.clock();
+        while (bus.cpu.cycles > 0) {
+            clock_time++;
+            bus.cpu.clock();
+        }
+
+        // we just finished an instruction
+        ASSERT_EQ(bus.cpu.last_executed_opcode, trace.opcode);
+        ASSERT_EQ(bus.cpu.x, trace.x);
+        ASSERT_EQ(bus.cpu.y, trace.y);
+        ASSERT_EQ(bus.cpu.a, trace.a);
+        ASSERT_EQ(bus.cpu.sp, trace.sp);
+        ASSERT_EQ(bus.cpu.pc, trace.pc);
+        ASSERT_EQ(clock_time, trace.num_clocks);
+        ASSERT_EQ(bus.cpu.status, trace.status);
+    }
+}
