@@ -90,7 +90,10 @@ class CpuTest : public ::testing::Test {
 protected:
     void SetUp() override {
         auto tests = {
-                "test00-loadstore", "test01-andorxor", "test02-incdec"
+                "test00-loadstore",
+                "test01-andorxor",
+                "test02-incdec",
+                "test03-bitshifts",
         };
 
         for (auto &test : tests) {
