@@ -1,7 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <gtest/gtest.h>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "r6502.h"
 #include "bus.h"
@@ -86,74 +87,63 @@ std::vector<Trace> load_trace(std::string_view path) {
     return traces;
 }
 
-class CpuTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        auto tests = {
-                "test00-loadstore",
-                "test01-andorxor",
-                "test02-incdec",
-                "test03-bitshifts",
-                "test04-jumpsret",
-        };
+TEST_CASE("cpu works", "[6502]") {
+    auto tests = {
+            "test00-loadstore",
+            "test01-andorxor",
+            "test02-incdec",
+            "test03-bitshifts",
+//            "test04-jumpsret",
+    };
 
-        for (auto &test : tests) {
-            auto testname = std::string(test);
-            auto bus = load_rom("6502-tests/hmc-6502/roms/" + testname + ".rom");
-            bus.write(0xFFFC, 0x00);
-            bus.write(0xFFFD, 0xF0);
+    for (auto &test : tests) {
+        auto testname = std::string(test);
+        auto bus = load_rom("6502-tests/hmc-6502/roms/" + testname + ".rom");
+        bus.write(0xFFFC, 0x00);
+        bus.write(0xFFFD, 0xF0);
 
-            auto traces = load_trace("6502-tests/hmc-6502/expectedResults/" + testname + "-trace.txt");
+        auto traces = load_trace("6502-tests/hmc-6502/expectedResults/" + testname + "-trace.txt");
 
-            test_cases.emplace_back(std::move(bus), std::move(traces));
+        SECTION("cpu produces proper disassembly") {
+            auto disassembly = R6502::disassemble(bus, traces.front().address, traces.back().address);
+            REQUIRE(disassembly.size() == traces.size());
+
+            for (auto &trace: traces) {
+                auto &disassembled = disassembly[trace.address];
+                REQUIRE(disassembled == trace.disassembled);
+            }
         }
-    }
 
-    std::vector<std::pair<Bus, std::vector<Trace>>> test_cases;
-};
+        SECTION("cpu executes correctly") {
+            R6502 cpu;
+            cpu.reset(bus);
+            cpu.set_flag(I, true);
+            for (int i = 0; i < 8; i++)
+                cpu.clock(bus); // startup sequence
 
-TEST_F(CpuTest, DisassemblesCorrectly) {
-    for (auto &[bus, traces] : test_cases) {
-        auto disassembly = R6502::disassemble(bus, traces.front().address, traces.back().address);
-        ASSERT_EQ(disassembly.size(), traces.size());
+            uint64 clock_time = 0;
+            for (auto &trace: traces) {
+//                printf("executing %04x %-16s (x=%02x y=%02x a=%02x sp=%02x pc=%04x clock=%4llu status=%02x)\n",
+//                       trace.address, trace.disassembled.c_str(), trace.x, trace.y, trace.a, trace.sp, trace.pc,
+//                       trace.num_clocks, trace.status);
 
-        for (auto &trace: traces) {
-            auto &disassembled = disassembly[trace.address];
-            EXPECT_EQ(disassembled, trace.disassembled);
-        }
-    }
-}
-
-TEST_F(CpuTest, ExecutesCorrectly) {
-    for (auto &[bus, traces] : test_cases) {
-        R6502 cpu;
-        cpu.reset(bus);
-        cpu.set_flag(I, true);
-        for (int i = 0; i < 8; i++)
-            cpu.clock(bus); // startup sequence
-
-        uint64 clock_time = 0;
-        for (auto &trace: traces) {
-            printf("executing %04x %-16s (x=%02x y=%02x a=%02x sp=%02x pc=%04x clock=%4llu status=%02x)\n",
-                   trace.address, trace.disassembled.c_str(), trace.x, trace.y, trace.a, trace.sp, trace.pc,
-                   trace.num_clocks, trace.status);
-
-            clock_time++;
-            cpu.clock(bus);
-            while (cpu.cycles > 0) {
                 clock_time++;
                 cpu.clock(bus);
-            }
+                while (cpu.cycles > 0) {
+                    clock_time++;
+                    cpu.clock(bus);
+                }
 
-            // we just finished an instruction
-            ASSERT_EQ(cpu.last_executed_opcode, trace.opcode);
-            ASSERT_EQ(cpu.x, trace.x);
-            ASSERT_EQ(cpu.y, trace.y);
-            ASSERT_EQ(cpu.a, trace.a);
-            ASSERT_EQ(cpu.sp, trace.sp);
-            ASSERT_EQ(cpu.pc, trace.pc);
-            ASSERT_EQ(clock_time, trace.num_clocks);
-            ASSERT_EQ(cpu.status, trace.status);
+                // we just finished an instruction
+                REQUIRE(cpu.last_executed_opcode == trace.opcode);
+                REQUIRE(cpu.x == trace.x);
+                REQUIRE(cpu.y == trace.y);
+                REQUIRE(cpu.a == trace.a);
+                REQUIRE(cpu.sp == trace.sp);
+                REQUIRE(cpu.pc == trace.pc);
+                REQUIRE(clock_time == trace.num_clocks);
+                REQUIRE(cpu.status == trace.status);
+            }
         }
     }
 }
