@@ -563,12 +563,11 @@ std::map<uint16, std::string> R6502::disassemble(const Bus &bus, uint16 start, u
 
     uint16 addr = start;
     while (addr <= end) {
-        std::stringstream ss;
-
         uint16 line_start = addr;
         uint8 opcode = bus.read(addr++);
         auto &instr = instruction_lookup_table[opcode];
-        ss << magic_enum::enum_name(instr.opcode);
+
+        auto disassembled = std::string(magic_enum::enum_name(instr.opcode));
 
         int hi, lo;
         char buf[256] = {};
@@ -624,11 +623,11 @@ std::map<uint16, std::string> R6502::disassemble(const Bus &bus, uint16 start, u
             break;
         }
 
-        std::string addr_string = buf;
-        if (!addr_string.empty()) {
-            ss << " " << addr_string;
+        if (buf[0] != 0) {
+            disassembled += " ";
+            disassembled += buf;
         }
-        strings[line_start] = ss.str();
+        strings[line_start] = disassembled;
     }
 
     return strings;

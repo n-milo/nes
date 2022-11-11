@@ -94,6 +94,7 @@ protected:
                 "test01-andorxor",
                 "test02-incdec",
                 "test03-bitshifts",
+                "test04-jumpsret",
         };
 
         for (auto &test : tests) {
