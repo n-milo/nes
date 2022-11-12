@@ -93,8 +93,10 @@ TEST_CASE("cpu works", "[6502]") {
             "test01-andorxor",
             "test02-incdec",
             "test03-bitshifts",
-//            "test04-jumpsret",
+            "test04-jumpsret",
     };
+
+    std::vector<std::pair<Bus, std::vector<Trace>>> test_cases;
 
     for (auto &test : tests) {
         auto testname = std::string(test);
@@ -104,7 +106,11 @@ TEST_CASE("cpu works", "[6502]") {
 
         auto traces = load_trace("6502-tests/hmc-6502/expectedResults/" + testname + "-trace.txt");
 
-        SECTION("cpu produces proper disassembly") {
+        test_cases.emplace_back(std::move(bus), std::move(traces));
+    }
+
+    SECTION("cpu produces proper disassembly") {
+        for (auto &[bus, traces] : test_cases) {
             auto disassembly = R6502::disassemble(bus, traces.front().address, traces.back().address);
             REQUIRE(disassembly.size() == traces.size());
 
@@ -113,8 +119,10 @@ TEST_CASE("cpu works", "[6502]") {
                 REQUIRE(disassembled == trace.disassembled);
             }
         }
+    }
 
-        SECTION("cpu executes correctly") {
+    SECTION("cpu executes correctly") {
+        for (auto &[bus, traces] : test_cases) {
             R6502 cpu;
             cpu.reset(bus);
             cpu.set_flag(I, true);
