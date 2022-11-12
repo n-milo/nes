@@ -107,7 +107,8 @@ TEST_CASE("cpu works", "[6502]") {
             TestCase{"test03-bitshifts"},
             TestCase{"test04-jumpsret"},
             TestCase{"test05-reginstrs"},
-            TestCase{"test06-addsub", 0xff, 0});
+            TestCase{"test06-addsub", 0xff, 0},
+            TestCase{"test07-cmpbeqbne", 0xff, 0});
 
 
     auto bus = load_rom("6502-tests/hmc-6502/roms/" + test.name + ".rom");
