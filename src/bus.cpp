@@ -1,20 +1,22 @@
 #include "bus.h"
 
 void Bus::write(uint16 addr, uint8 data) {
-    if (addr >= 0x0000 && addr <= 0xFFFF) {
-        ram[addr] = data;
-//        printf("%02x -> [%04x]\n", data, addr);
+    if (addr >= RAM_START && addr <= RAM_END) {
+        ram[addr % 0x7ff] = data;
+    } else if (addr >= ROM_START && addr <= ROM_END) {
+        rom[addr - ROM_START] = data;
     } else {
-//        printf("%02x -> [%04x] (out of range)\n", data, addr);
+        printf("warning: invalid write to %04x", addr);
     }
 }
 
 uint8 Bus::read(uint16 addr) const {
-    if (addr >= 0x0000 && addr <= 0xFFFF) {
-//        printf("[%04x] -> %02x\n", addr, ram[addr]);
-        return ram[addr];
+    if (addr >= RAM_START && addr <= RAM_END) {
+        return ram[addr % 0x7ff];
+    } else if (addr >= ROM_START && addr <= ROM_END) {
+        return rom[addr - ROM_START];
     } else {
-//        printf("[%04x] -> out of range\n", addr);
+        printf("warning: invalid read from %04x", addr);
         return 0;
     }
 }

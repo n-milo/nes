@@ -41,7 +41,7 @@ Bus load_rom(std::string_view path) {
     }
 
     Bus bus;
-    std::copy(rom.begin(), rom.end(), bus.ram.begin() + 0xF000);
+    std::copy(rom.begin(), rom.end(), bus.rom.begin() + 0xF000 - ROM_START);
 
     return bus;
 }
@@ -107,8 +107,7 @@ TEST_CASE("cpu works", "[6502]") {
             TestCase{"test03-bitshifts"},
             TestCase{"test04-jumpsret"},
             TestCase{"test05-reginstrs"},
-            TestCase{"test06-addsub", 0xff, 0},
-            TestCase{"test07-cmpbeqbne", 0xff, 0});
+            TestCase{"test06-addsub", 0xff, 0});
 
 
     auto bus = load_rom("6502-tests/hmc-6502/roms/" + test.name + ".rom");
