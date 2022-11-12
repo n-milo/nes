@@ -63,6 +63,11 @@ std::vector<Trace> load_trace(std::string_view path) {
 
         trace.disassembled = line.substr(25, 52-25);
         rtrim(trace.disassembled);
+        auto semicolon = trace.disassembled.find(';');
+        if (semicolon != std::string::npos) {
+            trace.disassembled = trace.disassembled.substr(0, semicolon);
+            rtrim(trace.disassembled);
+        }
 
         auto opcode_str = line.substr(12, 2);
         if (opcode_str == "  ") {
@@ -91,8 +96,8 @@ TEST_CASE("cpu works", "[6502]") {
     auto testname = GENERATE(std::string("test00-loadstore"),
                              std::string("test01-andorxor"),
                              std::string("test02-incdec"),
-                             std::string("test03-bitshifts")
-//                             std::string("test04-jumpsret")
+                             std::string("test03-bitshifts"),
+                             std::string("test04-jumpsret")
 //                             std::string("test05-reginstrs"),
 //                             std::string("test06-addsub"),
 //                             std::string("test11-stackinstrs")
@@ -107,7 +112,7 @@ TEST_CASE("cpu works", "[6502]") {
     SECTION("cpu produces proper disassembly") {
         printf("disassemble %s\n", testname.c_str());
         auto disassembly = R6502::disassemble(bus, traces.front().address, traces.back().address);
-        REQUIRE(disassembly.size() == traces.size());
+        REQUIRE(disassembly.size() >= traces.size());
 
         for (auto &trace: traces) {
             auto &disassembled = disassembly[trace.address];
