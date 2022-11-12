@@ -97,8 +97,8 @@ TEST_CASE("cpu works", "[6502]") {
                              std::string("test01-andorxor"),
                              std::string("test02-incdec"),
                              std::string("test03-bitshifts"),
-                             std::string("test04-jumpsret")
-//                             std::string("test05-reginstrs"),
+                             std::string("test04-jumpsret"),
+                             std::string("test05-reginstrs")
 //                             std::string("test06-addsub"),
 //                             std::string("test11-stackinstrs")
                              );
@@ -130,9 +130,9 @@ TEST_CASE("cpu works", "[6502]") {
 
         uint64 clock_time = 0;
         for (auto &trace: traces) {
-//                printf("executing %04x %-16s (x=%02x y=%02x a=%02x sp=%02x pc=%04x clock=%4llu status=%02x)\n",
-//                       trace.address, trace.disassembled.c_str(), trace.x, trace.y, trace.a, trace.sp, trace.pc,
-//                       trace.num_clocks, trace.status);
+                printf("executing %04x %-16s (x=%02x y=%02x a=%02x sp=%02x pc=%04x clock=%4llu status=%02x)\n",
+                       trace.address, trace.disassembled.c_str(), trace.x, trace.y, trace.a, trace.sp, trace.pc,
+                       trace.num_clocks, trace.status);
 
             clock_time++;
             cpu.clock(bus);

@@ -242,6 +242,7 @@ bool R6502::calculate_operation(Bus &bus,
         a = x;
         return false;
     case TXS:
+        sp = x;
         return false;
     case TYA:
         a = y;
