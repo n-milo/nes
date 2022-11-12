@@ -92,25 +92,32 @@ std::vector<Trace> load_trace(std::string_view path) {
     return traces;
 }
 
-TEST_CASE("cpu works", "[6502]") {
-    auto testname = GENERATE(std::string("test00-loadstore"),
-                             std::string("test01-andorxor"),
-                             std::string("test02-incdec"),
-                             std::string("test03-bitshifts"),
-                             std::string("test04-jumpsret"),
-                             std::string("test05-reginstrs")
-//                             std::string("test06-addsub"),
-//                             std::string("test11-stackinstrs")
-                             );
+struct TestCase {
+    std::string name;
+    uint16 initial_stack_pointer = 0xfd;
+    uint8 initial_status = I | U;
+};
 
-    auto bus = load_rom("6502-tests/hmc-6502/roms/" + testname + ".rom");
+TEST_CASE("cpu works", "[6502]") {
+
+    auto test = GENERATE(
+            TestCase{"test00-loadstore"},
+            TestCase{"test01-andorxor"},
+            TestCase{"test02-incdec"},
+            TestCase{"test03-bitshifts"},
+            TestCase{"test04-jumpsret"},
+            TestCase{"test05-reginstrs"},
+            TestCase{"test06-addsub", 0xff, 0});
+
+
+    auto bus = load_rom("6502-tests/hmc-6502/roms/" + test.name + ".rom");
     bus.write(0xFFFC, 0x00);
     bus.write(0xFFFD, 0xF0);
 
-    auto traces = load_trace("6502-tests/hmc-6502/expectedResults/" + testname + "-trace.txt");
+    auto traces = load_trace("6502-tests/hmc-6502/expectedResults/" + test.name + "-trace.txt");
 
     SECTION("cpu produces proper disassembly") {
-        printf("disassemble %s\n", testname.c_str());
+        printf("disassemble %s\n", test.name.c_str());
         auto disassembly = R6502::disassemble(bus, traces.front().address, traces.back().address);
         REQUIRE(disassembly.size() >= traces.size());
 
@@ -121,10 +128,12 @@ TEST_CASE("cpu works", "[6502]") {
     }
 
     SECTION("cpu executes correctly") {
-        printf("execute %s\n", testname.c_str());
+        printf("execute %s\n", test.name.c_str());
         R6502 cpu;
         cpu.reset(bus);
-        cpu.set_flag(I, true);
+        cpu.sp = test.initial_stack_pointer;
+        cpu.status = test.initial_status;
+
         for (int i = 0; i < 8; i++)
             cpu.clock(bus); // startup sequence
 
