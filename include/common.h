@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <utility>
 
 typedef uint8_t  uint8;
 typedef uint16_t uint16;
@@ -33,3 +34,33 @@ typedef int64_t int64;
         __builtin_trap();      \
     }                          \
 } while(0)
+
+template<typename F>
+struct DeferredFunction {
+    F f;
+
+    DeferredFunction() = delete;
+    DeferredFunction(const DeferredFunction &) = delete;
+
+    DeferredFunction(F &&f) : f(std::move(f)) {}
+
+    ~DeferredFunction() {
+        f();
+    }
+};
+
+struct DeferHelper {
+
+    template<typename F>
+    DeferredFunction<F> operator<<(F &&f) {
+        return DeferredFunction<F>(std::move(f));
+    }
+
+};
+
+inline DeferHelper deferHelper;
+
+#define DEFER_1(x, y) x##y
+#define DEFER_2(x, y) DEFER_1(x, y)
+#define DEFER_3(x)    DEFER_2(x, __COUNTER__)
+#define defer auto DEFER_3(_defer_) = deferHelper << [&]
