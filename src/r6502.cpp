@@ -634,6 +634,46 @@ std::map<uint16, std::string> R6502::disassemble(const Bus &bus, uint16 start, u
     return strings;
 }
 
+/*
+    C = 1,
+    Z = 2,
+    I = 4,
+    D = 8,
+    B = 16,
+    U = 32,
+    V = 64,
+    N = 128,
+ */
+
+std::string status_to_string(uint8 status) {
+    std::stringstream ss;
+    if (status & C)
+        ss << "C | ";
+    if (status & Z)
+        ss << "Z | ";
+    if (status & I)
+        ss << "I | ";
+    if (status & D)
+        ss << "D | ";
+    if (status & B)
+        ss << "B | ";
+    if (status & U)
+        ss << "U | ";
+    if (status & V)
+        ss << "V | ";
+    if (status & N)
+        ss << "N | ";
+
+    auto str = ss.str();
+    if (!str.empty()) {
+        // crop off the last "| " that would be added
+        str.erase(str.end()-1);
+        str.erase(str.end()-1);
+    }
+
+    return str;
+}
+
 const Instruction instruction_lookup_table[256] = {
         { BRK, IMM, 7 },{ ORA, IZX, 6 },{ XXX, IMP, 2 },{ XXX, IMP, 8 },{ NOP, IMP, 3 },{ ORA, ZP0, 3 },{ ASL, ZP0, 5 },{ XXX, IMP, 5 },{ PHP, IMP, 3 },{ ORA, IMM, 2 },{ ASL, IMP, 2 },{ XXX, IMP, 2 },{ NOP, IMP, 4 },{ ORA, ABS, 4 },{ ASL, ABS, 6 },{ XXX, IMP, 6 },
         { BPL, REL, 2 },{ ORA, IZY, 5 },{ XXX, IMP, 2 },{ XXX, IMP, 8 },{ NOP, IMP, 4 },{ ORA, ZPX, 4 },{ ASL, ZPX, 6 },{ XXX, IMP, 6 },{ CLC, IMP, 2 },{ ORA, ABY, 4 },{ NOP, IMP, 2 },{ XXX, IMP, 7 },{ NOP, IMP, 4 },{ ORA, ABX, 4 },{ ASL, ABX, 7 },{ XXX, IMP, 7 },

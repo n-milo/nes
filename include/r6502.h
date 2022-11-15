@@ -63,6 +63,8 @@ enum Flags {
     N = 128,
 };
 
+std::string status_to_string(uint8 status);
+
 class R6502 {
 
     void do_interrupt(Bus &bus, uint16 start_addr);
