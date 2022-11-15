@@ -3,7 +3,7 @@ project(nes)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_library(nes src/r6502.cpp include/r6502.h src/bus.cpp include/bus.h include/common.h src/cartridge.cpp include/cartridge.h include/mapper.h)
+add_library(nes src/r6502.cpp include/r6502.h src/bus.cpp include/bus.h include/common.h src/cartridge.cpp include/cartridge.h include/mapper.h src/format.cpp)
 include_directories(nes PUBLIC include)
 include_directories(nes PUBLIC /opt/homebrew/include)
 target_compile_options(nes PUBLIC -include common.h)
