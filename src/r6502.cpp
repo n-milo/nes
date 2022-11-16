@@ -1,7 +1,6 @@
 #include "r6502.h"
 
 #include <sstream>
-#include <magic_enum.hpp>
 
 #include "bus.h"
 
@@ -103,8 +102,7 @@ uint16 R6502::calculate_address(const Bus &bus, AddrMode addr_mode, bool &page_c
     case IMP: // instruction operand is implied (e.g. RTS)
     case REL: // instruction is relative
         // all of these cases are already handled in the clock() code, so really this part should be unreachable
-        panic("addressing mode `%s` does not have a real address",
-              std::string(magic_enum::enum_name(addr_mode)).c_str());
+        panic("addressing mode does not have a real address");
 
     case ABS: { // absolute addressing (read 2 bytes for address)
         uint16 lo = read(bus, pc++);
@@ -568,7 +566,7 @@ std::map<uint16, std::string> R6502::disassemble(const Bus &bus, uint16 start, u
         uint8 opcode = bus.read(addr++);
         auto &instr = instruction_lookup_table[opcode];
 
-        auto disassembled = std::string(magic_enum::enum_name(instr.opcode));
+        auto disassembled = std::string(op_to_string(instr.opcode));
 
         int hi, lo;
         char buf[256] = {};
@@ -672,6 +670,70 @@ std::string status_to_string(uint8 status) {
     }
 
     return str;
+}
+
+const char *op_to_string(Op op) {
+    switch (op) {
+        case ADC: return "ADC";
+        case AND: return "AND";
+        case ASL: return "ASL";
+        case BCC: return "BCC";
+        case BCS: return "BCS";
+        case BEQ: return "BEQ";
+        case BIT: return "BIT";
+        case BMI: return "BMI";
+        case BNE: return "BNE";
+        case BPL: return "BPL";
+        case BRK: return "BRK";
+        case BVC: return "BVC";
+        case BVS: return "BVS";
+        case CLC: return "CLC";
+        case CLD: return "CLD";
+        case CLI: return "CLI";
+        case CLV: return "CLV";
+        case CMP: return "CMP";
+        case CPX: return "CPX";
+        case CPY: return "CPY";
+        case DEC: return "DEC";
+        case DEX: return "DEX";
+        case DEY: return "DEY";
+        case EOR: return "EOR";
+        case INC: return "INC";
+        case INX: return "INX";
+        case INY: return "INY";
+        case JMP: return "JMP";
+        case JSR: return "JSR";
+        case LDA: return "LDA";
+        case LDX: return "LDX";
+        case LDY: return "LDY";
+        case LSR: return "LSR";
+        case NOP: return "NOP";
+        case ORA: return "ORA";
+        case PHA: return "PHA";
+        case PHP: return "PHP";
+        case PLA: return "PLA";
+        case PLP: return "PLP";
+        case ROL: return "ROL";
+        case ROR: return "ROR";
+        case RTI: return "RTI";
+        case RTS: return "RTS";
+        case SBC: return "SBC";
+        case SEC: return "SEC";
+        case SED: return "SED";
+        case SEI: return "SEI";
+        case STA: return "STA";
+        case STX: return "STX";
+        case STY: return "STY";
+        case TAX: return "TAX";
+        case TAY: return "TAY";
+        case TSX: return "TSX";
+        case TXA: return "TXA";
+        case TXS: return "TXS";
+        case TYA: return "TYA";
+
+        default:
+        case XXX: return "???";
+    }
 }
 
 const Instruction instruction_lookup_table[256] = {

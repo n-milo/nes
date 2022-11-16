@@ -2,6 +2,11 @@
 #include <SDL2/SDL_ttf.h>
 
 #include <sstream>
+#include <memory>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #include "format.h"
 #include "bus.h"
@@ -181,6 +186,18 @@ public:
     }
 };
 
+#ifdef __EMSCRIPTEN__
+void loop_callback(void *userdata) {
+    auto frontend = reinterpret_cast<NesFrontend *>(userdata);
+    frontend->update();
+}
+
+int main() {
+    auto frontend = new NesFrontend;
+    emscripten_set_main_loop_arg(loop_callback, frontend, 0, 0);
+    // we can't destruct NesFrontend in the browser since it will never send an SDL_QUIT event
+}
+#else
 int main() {
     NesFrontend frontend;
 
@@ -191,3 +208,4 @@ int main() {
 
     return 0;
 }
+#endif

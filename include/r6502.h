@@ -44,7 +44,7 @@ enum Op {
     XXX // Unknown
 };
 
-std::ostream& operator<<(std::ostream &os, Op op);
+const char *op_to_string(Op op);
 
 struct Instruction {
     Op opcode;
