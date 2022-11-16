@@ -41,7 +41,7 @@ Bus load_rom(std::string_view path) {
     }
 
     Bus bus;
-    std::copy(rom.begin(), rom.end(), bus.rom.begin() + 0xF000 - ROM_START);
+    std::copy(rom.begin(), rom.end(), bus.rom.begin() + 0xF000 - ROM_START); // this copies the data to start at 0xF000
 
     return bus;
 }
