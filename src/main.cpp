@@ -72,7 +72,10 @@ public:
         window_surface = SDL_GetWindowSurface(window);
         ASSERT(window_surface, "expected window surface");
 
-        TTF_Init();
+        int err = TTF_Init();
+        if (err) {
+            panic("could not initialize TTF: %s", TTF_GetError());
+        }
 
         font = TTF_OpenFont("pixel.ttf", 18);
         ASSERT(font, "expected font");
@@ -88,6 +91,8 @@ public:
 
         init_cpu(cpu, bus);
         disassembly = R6502::disassemble(bus, 0x4020, 0x4040);
+
+        printf("Frontend initialized successfully.\n");
     }
 
     ~NesFrontend() {
@@ -129,8 +134,11 @@ public:
 
     void render_text(int x, int y, const char *str, SDL_Color color = white) const {
         SDL_Surface *message = TTF_RenderText_Solid(font, str, color);
+        ASSERT(message, "expected message");
         SDL_Rect dst = {x, y, message->w, message->h};
-        SDL_BlitSurface(message, nullptr, window_surface, &dst);
+        ASSERT(window_surface, "expected window_surface");
+        int err = SDL_BlitSurface(message, nullptr, window_surface, &dst);
+        ASSERT(err == 0, "SDL error: %s", SDL_GetError());
     }
 
     void render_text(int x, int y, const std::string &str, SDL_Color color = white) const {
@@ -196,6 +204,7 @@ int main() {
     auto frontend = new NesFrontend;
     emscripten_set_main_loop_arg(loop_callback, frontend, 0, 0);
     // we can't destruct NesFrontend in the browser since it will never send an SDL_QUIT event
+    return 0;
 }
 #else
 int main() {
