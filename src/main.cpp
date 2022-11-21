@@ -111,7 +111,11 @@ public:
     }
 
     void render_cpu() {
-//        TODO("render_cpu");
+        SDL_LockSurface(screen);
+        for (int i = 0; i < screen->pitch * screen->h; i++) {
+            reinterpret_cast<char *>(screen->pixels)[i] = rand() & 0xFF;
+        }
+        SDL_UnlockSurface(screen);
     }
 };
 
