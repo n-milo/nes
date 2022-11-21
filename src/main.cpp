@@ -12,8 +12,17 @@
 #include "r6502.h"
 
 namespace {
+    constexpr int VIEWPORT_WIDTH = 1400;
+    constexpr int VIEWPORT_HEIGHT = 700;
+
     constexpr int NES_WIDTH = 256;
     constexpr int NES_HEIGHT = 240;
+
+    constexpr int PADDING = 5;
+    constexpr int TEXT_START = 2*PADDING + NES_WIDTH;
+
+    constexpr SDL_Color white = {255, 255, 255, 255};
+    constexpr SDL_Color blue = {255, 127, 127, 255};
 }
 
 void init_cpu(R6502 &cpu, Bus &bus) {
@@ -53,7 +62,7 @@ public:
 
         window = SDL_CreateWindow("NES",
                                   SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                  NES_WIDTH, NES_HEIGHT,
+                                  VIEWPORT_WIDTH, VIEWPORT_HEIGHT,
                                   0);
         if (!window) {
             panic("could not create window");
@@ -87,7 +96,8 @@ public:
 
         render_cpu();
 
-        SDL_BlitSurface(screen, nullptr, window_surface, nullptr);
+        SDL_Rect dst = {PADDING, PADDING, screen->w, screen->h};
+        SDL_BlitSurface(screen, nullptr, window_surface, &dst);
 
         SDL_UpdateWindowSurface(window);
 
@@ -110,8 +120,59 @@ public:
         return false;
     }
 
+    void render_text(int x, int y, const char *str, SDL_Color color = white) const {
+    }
+
+    void render_text(int x, int y, const std::string &str, SDL_Color color = white) const {
+        render_text(x, y, str.c_str(), color);
+    }
+
     void render_cpu() {
-//        TODO("render_cpu");
+        auto status = status_to_string(cpu.status);
+
+        // render cpu status
+        render_text(TEXT_START, 5,
+                    string_printf("Status = %02x = %s", cpu.status, status.c_str()));
+
+        render_text(TEXT_START, 25,
+                    string_printf("A = %02x, X = %02x, Y = %02x", cpu.a, cpu.x, cpu.y));
+
+        render_text(TEXT_START, 45,
+                    string_printf("SP = %02x, PC = %04x", cpu.sp, cpu.pc));
+
+        render_text(TEXT_START, 65,
+                    string_printf("Cycles = %d", cpu.cycles));
+
+        // render instructions
+        render_text(5, 250, "N = clock once");
+
+        // render disassembly
+        {
+            int y = 100;
+            for (auto &[addr, instruction]: disassembly) {
+                auto color = (addr == cpu.pc) ? blue : white;
+                render_text(TEXT_START, y, string_printf("$%04x: %s", addr, instruction.c_str()), color);
+                y += 20;
+            }
+        }
+
+        auto render_memory = [&](uint16 start_addr, const char *name, int x, int y) {
+            render_text(x, y, name);
+            for (int mem_y = 0; mem_y < 16; mem_y++) {
+                uint16 addr = (mem_y << 4) + start_addr;
+                std::string row = string_printf("$%04x: ", addr);
+                row.reserve(row.capacity() + 16 * 3); // we want space for 16 words, plus the space in between them
+                for (int mem_x = 0; mem_x < 16; mem_x++) {
+                    row += string_printf("%02x ", bus.read(addr));
+                    addr++;
+                }
+
+                render_text(x, mem_y * 20 + y + 20, row);
+            }
+        };
+
+        render_memory(0x0000, "Zero page:", TEXT_START + 350, 5);
+        render_memory(0x4020, "ROM:", TEXT_START + 350, 350);
     }
 };
 
