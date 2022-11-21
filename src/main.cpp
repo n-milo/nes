@@ -1,5 +1,4 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
 
 #include <sstream>
 #include <memory>
@@ -49,7 +48,7 @@ class NesFrontend {
 public:
     SDL_Window *window;
     SDL_Surface *window_surface;
-    TTF_Font *font;
+//    TTF_Font *font;
     SDL_Surface *screen;
 
     Bus bus;
@@ -72,14 +71,6 @@ public:
         window_surface = SDL_GetWindowSurface(window);
         ASSERT(window_surface, "expected window surface");
 
-        int err = TTF_Init();
-        if (err) {
-            panic("could not initialize TTF: %s", TTF_GetError());
-        }
-
-        font = TTF_OpenFont("pixel.ttf", 18);
-        ASSERT(font, "expected font");
-
         screen = SDL_CreateRGBSurface(0, NES_WIDTH, NES_HEIGHT, 24, 0, 0, 0, 0);
         ASSERT(screen, "expected surface");
 
@@ -96,9 +87,6 @@ public:
     }
 
     ~NesFrontend() {
-        TTF_CloseFont(font);
-        TTF_Quit();
-
         SDL_DestroyWindow(window);
         SDL_Quit();
     }
@@ -133,12 +121,6 @@ public:
     }
 
     void render_text(int x, int y, const char *str, SDL_Color color = white) const {
-        SDL_Surface *message = TTF_RenderText_Solid(font, str, color);
-        ASSERT(message, "expected message");
-        SDL_Rect dst = {x, y, message->w, message->h};
-        ASSERT(window_surface, "expected window_surface");
-        int err = SDL_BlitSurface(message, nullptr, window_surface, &dst);
-        ASSERT(err == 0, "SDL error: %s", SDL_GetError());
     }
 
     void render_text(int x, int y, const std::string &str, SDL_Color color = white) const {
