@@ -10,10 +10,9 @@ target_compile_options(nes PUBLIC -include common.h)
 target_compile_options(nes PUBLIC -fsanitize=address)
 target_link_options(nes PUBLIC -fsanitize=address)
 
-add_executable(nes_frontend src/main.cpp src/font.cpp)
+add_executable(nes_frontend src/main.cpp)
 target_link_libraries(nes_frontend PRIVATE nes)
 target_link_libraries(nes_frontend PRIVATE SDL2)
-target_link_libraries(nes_frontend PRIVATE SDL2_ttf)
 
 enable_testing()
 find_package(Catch2 3 REQUIRED)
