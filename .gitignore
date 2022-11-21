@@ -1,4 +1,2 @@
 .idea/
 cmake-build-debug/
-www/emulator.js
-www/emulator.wasm
