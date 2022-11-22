@@ -1,5 +1,4 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
 
 #include <sstream>
 #include <memory>
@@ -11,6 +10,7 @@
 #include "format.h"
 #include "bus.h"
 #include "r6502.h"
+#include "font.h"
 
 namespace {
     constexpr int VIEWPORT_WIDTH = 1400;
@@ -49,14 +49,15 @@ class NesFrontend {
 public:
     SDL_Window *window;
     SDL_Surface *window_surface;
-    TTF_Font *font;
     SDL_Surface *screen;
+
+    Font font;
 
     Bus bus;
     R6502 cpu;
     std::map<uint16, std::string> disassembly;
 
-    NesFrontend() {
+    NesFrontend() : font("monogram-bitmap.json") {
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             panic("could not init SDL");
         }
@@ -71,14 +72,6 @@ public:
 
         window_surface = SDL_GetWindowSurface(window);
         ASSERT(window_surface, "expected window surface");
-
-        int err = TTF_Init();
-        if (err) {
-            panic("could not initialize TTF: %s", TTF_GetError());
-        }
-
-        font = TTF_OpenFont("pixel.ttf", 18);
-        ASSERT(font, "expected font");
 
         screen = SDL_CreateRGBSurface(0, NES_WIDTH, NES_HEIGHT, 24, 0, 0, 0, 0);
         ASSERT(screen, "expected surface");
@@ -96,9 +89,6 @@ public:
     }
 
     ~NesFrontend() {
-        TTF_CloseFont(font);
-        TTF_Quit();
-
         SDL_DestroyWindow(window);
         SDL_Quit();
     }
@@ -133,12 +123,13 @@ public:
     }
 
     void render_text(int x, int y, const char *str, SDL_Color color = white) const {
-        SDL_Surface *message = TTF_RenderText_Solid(font, str, color);
+        SDL_Surface *message = font.render_text(str, color);
         ASSERT(message, "expected message");
         SDL_Rect dst = {x, y, message->w, message->h};
         ASSERT(window_surface, "expected window_surface");
         int err = SDL_BlitSurface(message, nullptr, window_surface, &dst);
         ASSERT(err == 0, "SDL error: %s", SDL_GetError());
+        SDL_FreeSurface(message);
     }
 
     void render_text(int x, int y, const std::string &str, SDL_Color color = white) const {
