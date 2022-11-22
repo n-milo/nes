@@ -123,13 +123,7 @@ public:
     }
 
     void render_text(int x, int y, std::string_view text, SDL_Color color = white) const {
-        SDL_Surface *message = font.render_text(text, color);
-        ASSERT(message, "expected message");
-        SDL_Rect dst = {x, y, message->w, message->h};
-        ASSERT(window_surface, "expected window_surface");
-        int err = SDL_BlitSurface(message, nullptr, window_surface, &dst);
-        ASSERT(err == 0, "SDL error: %s", SDL_GetError());
-        SDL_FreeSurface(message);
+        font.render_to_surface(window_surface, x, y, text, color);
     }
 
     void render_cpu() {

@@ -14,6 +14,11 @@ SDL_Surface *Font::render_text(std::string_view text, SDL_Color color, int scale
     int width = static_cast<int>(text.length()) * (TEXT_COLS + 1) * scale;
     SDL_Surface *surface = SDL_CreateRGBSurface(0, width, TEXT_ROWS * scale, 32, 0, 0, 0, 0xFF000000);
     ASSERT(surface, "SDL_CreateRGBSurface failed: %s", SDL_GetError());
+    render_to_surface(surface, 0, 0, text, color, scale);
+    return surface;
+}
+
+void Font::render_to_surface(SDL_Surface *surface, int x, int y, std::string_view text, SDL_Color color, int scale) const {
     SDL_LockSurface(surface);
 
     auto pixels = reinterpret_cast<uint32 *>(surface->pixels);
@@ -27,15 +32,13 @@ SDL_Surface *Font::render_text(std::string_view text, SDL_Color color, int scale
         for (int row = 0; row < TEXT_ROWS; row++) {
             for (int col = 0; col < TEXT_COLS; col++) {
 
-                for (int y = 0; y < scale; y++) {
-                    for (int x = 0; x < scale; x++) {
+                for (int pixel_y = 0; pixel_y < scale; pixel_y++) {
+                    for (int pixel_x = 0; pixel_x < scale; pixel_x++) {
                         int bit = rows[row] & (1 << col);
-                        int tx = (xadvance + col) * scale + x;
-                        int ty = row * scale + y;
+                        int tx = (xadvance + col) * scale + pixel_x + x;
+                        int ty = row * scale + pixel_y + y;
                         if (bit)
-                            pixels[tx + ty * width] = (color.r << 16) | (color.g << 8) | color.b;
-                        else
-                            pixels[tx + ty * width] = 0xFF000000;
+                            pixels[tx + ty * surface->w] = 0xFF000000 | (color.r << 16) | (color.g << 8) | color.b;
                     }
                 }
             }
@@ -45,5 +48,4 @@ SDL_Surface *Font::render_text(std::string_view text, SDL_Color color, int scale
     }
 
     SDL_UnlockSurface(surface);
-    return surface;
 }

@@ -21,4 +21,5 @@ public:
     explicit Font(const char *bitmap_json);
 
     SDL_Surface *render_text(std::string_view text, SDL_Color color, int scale = 2) const;
+    void render_to_surface(SDL_Surface *surface, int x, int y, std::string_view text, SDL_Color color, int scale = 2) const;
 };
