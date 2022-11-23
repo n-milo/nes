@@ -111,8 +111,8 @@ TEST_CASE("cpu works", "[6502]") {
 
 
     auto bus = load_rom("6502-tests/hmc-6502/roms/" + test.name + ".rom");
-    bus.write(0xFFFC, 0x00);
-    bus.write(0xFFFD, 0xF0);
+    bus.rom[0xFFFC - ROM_START] = 0x00;
+    bus.rom[0xFFFD - ROM_START] = 0xF0;
 
     auto traces = load_trace("6502-tests/hmc-6502/expectedResults/" + test.name + "-trace.txt");
 

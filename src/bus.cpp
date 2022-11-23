@@ -1,22 +1,34 @@
 #include "bus.h"
 
 void Bus::write(uint16 addr, uint8 data) {
-    if (addr >= RAM_START && addr <= RAM_END) {
+    if (cartridge.cpu_write(addr, data)) {
+        // TODO
+    } else if (addr >= RAM_START && addr <= RAM_END) {
         ram[addr % 0x7ff] = data;
-    } else if (addr >= ROM_START && addr <= ROM_END) {
-        rom[addr - ROM_START] = data;
+    } else if (addr >= PPU_START && addr <= PPU_END) {
+        ppu.cpu_write(addr & 0x7, data);
     } else {
-        printf("warning: invalid write to %04x", addr);
+        fprintf(stderr, "warning: invalid write to %04x\n", addr);
     }
 }
 
-uint8 Bus::read(uint16 addr) const {
-    if (addr >= RAM_START && addr <= RAM_END) {
+uint8 Bus::read(uint16 addr) {
+    if (auto data = cartridge.cpu_read(addr); data.has_value()) {
+        return *data;
+    } else if (addr >= RAM_START && addr <= RAM_END) {
         return ram[addr % 0x7ff];
-    } else if (addr >= ROM_START && addr <= ROM_END) {
-        return rom[addr - ROM_START];
+    } else if (addr >= PPU_START && addr <= PPU_END) {
+        return ppu.cpu_read(addr & 0x7);
     } else {
-        printf("warning: invalid read from %04x", addr);
+        fprintf(stderr, "warning: invalid read from %04x\n", addr);
         return 0;
     }
+}
+
+void Bus::clock() {
+    cpu.clock(*this);
+}
+
+void Bus::reset() {
+    cpu.reset(*this);
 }

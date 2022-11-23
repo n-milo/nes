@@ -6,14 +6,21 @@
 #include "mapper.h"
 
 class Cartridge {
-
-    std::vector<uint8> prg, chr;
-    int num_prgs, num_chrs;
-
+    int num_prg_banks, num_chr_banks;
     std::unique_ptr<Mapper> mapper;
 
 public:
-    explicit Cartridge(const char *file);
+    std::vector<uint8> prg, chr;
+
+    Cartridge(int num_prg_banks, int num_chr_banks, std::unique_ptr<Mapper> &&mapper)
+        : prg(num_prg_banks * 16*1024)
+        , chr(num_chr_banks * 8*1024)
+        , num_prg_banks(num_prg_banks)
+        , num_chr_banks(num_chr_banks)
+        , mapper(std::move(mapper))
+    {}
+
+    static Cartridge load_cartridge(const char *file);
 
     std::optional<uint8> cpu_read(uint16 addr);
     bool cpu_write(uint16 addr, uint8 val);

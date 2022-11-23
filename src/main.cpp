@@ -26,7 +26,9 @@ namespace {
     constexpr SDL_Color blue = {255, 127, 127, 255};
 }
 
-void init_cpu(R6502 &cpu, Bus &bus) {
+Cartridge create_test_cartridge() {
+    Cartridge cart(1, 1, std::make_unique<Mapper00NROM>(1, 1));
+
     std::stringstream program;
     program << "A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA";
 
@@ -35,14 +37,17 @@ void init_cpu(R6502 &cpu, Bus &bus) {
         std::string byte;
         program >> byte;
         uint8 digit = std::stoi(byte, nullptr, 16);
-        bus.rom[addr++] = digit;
+        cart.prg[addr++] = digit;
     }
 
-    // program starts at ROM_START
-    bus.write(0xFFFC, ROM_START & 0xFF);
-    bus.write(0xFFFD, ROM_START >> 8);
+    // $FFFC and $FFFD get mapped by our mapper to index 3FFC and 3FFD in the program memory
+    // Our program starts at $0000 in program memory, but since $0000 is mapped to the cpu ram,
+    // we'll say our program starts at $8000, which will get mapped by the mapper to index 0
+    // on the cartridge.
+    cart.prg[0x3FFD] = 0x80;
+    cart.prg[0x3FFC] = 0x00;
 
-    cpu.reset(bus);
+    return cart;
 }
 
 class NesFrontend {
@@ -54,10 +59,9 @@ public:
     Font font;
 
     Bus bus;
-    R6502 cpu;
     std::map<uint16, std::string> disassembly;
 
-    NesFrontend() : font("monogram-bitmap.json") {
+    NesFrontend() : font("monogram-bitmap.json"), bus(create_test_cartridge()) {
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             panic("could not init SDL");
         }
@@ -82,8 +86,8 @@ public:
         }
         SDL_UnlockSurface(screen);
 
-        init_cpu(cpu, bus);
-        disassembly = R6502::disassemble(bus, 0x4020, 0x4040);
+        init_cpu();
+        disassembly = R6502::disassemble(bus, 0x8000, 0x8020);
 
         printf("Frontend initialized successfully.\n");
     }
@@ -91,6 +95,10 @@ public:
     ~NesFrontend() {
         SDL_DestroyWindow(window);
         SDL_Quit();
+    }
+
+    void init_cpu() {
+        bus.reset();
     }
 
     bool update() {
@@ -113,7 +121,7 @@ public:
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     return true;
                 } else if (event.key.keysym.sym == SDLK_n) {
-                    cpu.clock(bus);
+                    bus.clock();
                 }
                 break;
             }
@@ -127,6 +135,7 @@ public:
     }
 
     void render_cpu() {
+        auto &cpu = bus.cpu;
         auto status = status_to_string(cpu.status);
 
         // render cpu status
@@ -171,7 +180,7 @@ public:
         };
 
         render_memory(0x0000, "Zero page:", TEXT_START + 350, 5);
-        render_memory(0x4020, "ROM:", TEXT_START + 350, 350);
+        render_memory(0x8000, "$8000:", TEXT_START + 350, 350);
     }
 };
 

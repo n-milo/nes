@@ -2,7 +2,7 @@
 
 #include <fstream>
 
-Cartridge::Cartridge(const char *file) {
+Cartridge Cartridge::load_cartridge(const char *file) {
     // https://www.nesdev.org/wiki/INES
 
     struct iNESHeader {
@@ -31,16 +31,23 @@ Cartridge::Cartridge(const char *file) {
     }
 
     uint8 mapper_number = (header.flags6 >> 4) | (header.flags7 & 0xf0);
+    std::unique_ptr<Mapper> mapper;
+
     switch (mapper_number) {
 
     case 0:
-        mapper = std::make_unique<Mapper00NROM>(num_prgs, num_chrs);
+        mapper = std::make_unique<Mapper00NROM>(header.prg_size, header.chr_size);
         break;
 
     default:
         panic("mapped %d not yet implemented", mapper_number);
 
     }
+
+    Cartridge cartridge(header.prg_size, header.chr_size, std::move(mapper));
+    in.read(reinterpret_cast<char *>(cartridge.prg.data()), cartridge.prg.size());
+    in.read(reinterpret_cast<char *>(cartridge.chr.data()), cartridge.chr.size());
+    return cartridge;
 }
 
 std::optional<uint8> Cartridge::cpu_read(uint16 addr) {
@@ -49,7 +56,6 @@ std::optional<uint8> Cartridge::cpu_read(uint16 addr) {
         return prg[*mapped];
     else
         return {};
-
 }
 
 std::optional<uint8> Cartridge::ppu_read(uint16 addr) {

@@ -90,7 +90,7 @@ void R6502::do_interrupt(Bus &bus, uint16 vector) {
     pc = (hi << 8) | lo;
 }
 
-uint16 R6502::calculate_address(const Bus &bus, AddrMode addr_mode, bool &page_crossed) {
+uint16 R6502::calculate_address(Bus &bus, AddrMode addr_mode, bool &page_crossed) {
     // https://www.nesdev.org/wiki/CPU_addressing_modes
 
     page_crossed = false;
@@ -549,7 +549,7 @@ uint8 R6502::do_addition(uint8 src_reg, uint8 operand) {
     return ret;
 }
 
-uint8 R6502::read(const Bus &bus, uint16 addr) {
+uint8 R6502::read(Bus &bus, uint16 addr) {
     return bus.read(addr);
 }
 
@@ -557,7 +557,7 @@ void R6502::write(Bus &bus, uint16 addr, uint8 data) {
     bus.write(addr, data);
 }
 
-std::map<uint16, std::string> R6502::disassemble(const Bus &bus, uint16 start, uint16 end) {
+std::map<uint16, std::string> R6502::disassemble(Bus &bus, uint16 start, uint16 end) {
     std::map<uint16, std::string> strings;
 
     uint16 addr = start;

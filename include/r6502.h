@@ -75,7 +75,7 @@ class R6502 {
     /// @param page_crossed out-paramater stating whether or not a page was crossed
     /// @see https://www.nesdev.org/wiki/CPU_addressing_modes
     /// @returns the absolute address given by this addressing mode
-    uint16 calculate_address(const Bus &bus, AddrMode addr_mode, bool &page_crossed);
+    uint16 calculate_address(Bus &bus, AddrMode addr_mode, bool &page_crossed);
 
     /// Calculate the result of an operation. May modify the processor state.
     /// @param bus the bus
@@ -90,7 +90,7 @@ class R6502 {
     void do_branch(bool condition, int8 relative_addr);
     uint8 do_addition(uint8 src_reg, uint8 operand);
 
-    uint8 read(const Bus &bus, uint16 addr);
+    uint8 read(Bus &bus, uint16 addr);
     void write(Bus &bus, uint16 addr, uint8 data);
 
 public:
@@ -107,7 +107,7 @@ public:
     void irq(Bus &bus);
     void nmi(Bus &bus);
 
-    static std::map<uint16, std::string> disassemble(const Bus &bus, uint16 start, uint16 end);
+    static std::map<uint16, std::string> disassemble(Bus &bus, uint16 start, uint16 end);
 
     void set_flag(Flags flag, bool set) {
         if (set)
