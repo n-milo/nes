@@ -13,6 +13,34 @@ static inline void rtrim(std::string &s) {
     }).base(), s.end());
 }
 
+// All the tests begin at 0xF000, so we want a mapper to map those addresses to index 0.
+class TestMapper : public Mapper {
+public:
+    TestMapper() : Mapper(1, 1) {}
+
+    std::optional<uint32> map_cpu_read(uint16 addr) override {
+        if (addr >= 0xF000) {
+            return addr & 0xfff;
+        }
+        return {};
+    }
+
+    std::optional<uint32> map_cpu_write(uint16 addr) override {
+        if (addr >= 0xF000) {
+            return addr & 0xfff;
+        }
+        return {};
+    }
+
+    std::optional<uint32> map_ppu_read(uint16 addr) override {
+        panic("ppu tests are not yet implemented");
+    }
+
+    std::optional<uint32> map_ppu_write(uint16 addr) override {
+        panic("ppu tests are not yet implemented");
+    }
+};
+
 struct Trace {
     uint16 address;
     uint8 opcode;
@@ -28,8 +56,10 @@ Bus load_rom(std::string_view path) {
         throw std::invalid_argument(std::string(path) + " does not exist");
     }
 
-    std::vector<uint8> rom;
+    Cartridge cart(1, 1, std::make_unique<TestMapper>());
+
     std::string line;
+    int index = 0;
     while (std::getline(romfile, line)) {
         if (line.rfind("//", 0) == 0 || line.empty()) {
             // line is a comment or blank
@@ -37,13 +67,16 @@ Bus load_rom(std::string_view path) {
         }
 
         uint8 digit = std::stoi(line, nullptr, 16);
-        rom.push_back(digit);
+        cart.prg[index++] = digit;
     }
 
-    Bus bus;
-    std::copy(rom.begin(), rom.end(), bus.rom.begin() + 0xF000 - ROM_START); // this copies the data to start at 0xF000
+    // for the same reasons given in main.cpp...
+    // 6502 checks the word at "$FFFC" which is really $3FFC in rom
+    // so make the program start at "$F000" which is really $0 in ROM
+    cart.prg[0xFFD] = 0xF0;
+    cart.prg[0xFFC] = 0x00;
 
-    return bus;
+    return Bus(std::move(cart));
 }
 
 std::vector<Trace> load_trace(std::string_view path) {
@@ -111,8 +144,6 @@ TEST_CASE("cpu works", "[6502]") {
 
 
     auto bus = load_rom("6502-tests/hmc-6502/roms/" + test.name + ".rom");
-    bus.rom[0xFFFC - ROM_START] = 0x00;
-    bus.rom[0xFFFD - ROM_START] = 0xF0;
 
     auto traces = load_trace("6502-tests/hmc-6502/expectedResults/" + test.name + "-trace.txt");
 
