@@ -19,11 +19,11 @@ Cartridge Cartridge::load_cartridge(const char *file) {
 
     static_assert(sizeof(iNESHeader) == 16, "iNES header is 16 bytes");
 
-    std::ifstream in(file);
+    std::ifstream in;
     in.open(file, std::ifstream::binary);
     ASSERT(in.is_open(), "%s does not exist", file);
 
-    iNESHeader header;
+    iNESHeader header = {0};
     in.read(reinterpret_cast<char *>(&header), 16);
 
     if (header.flags6 & 0x4) {

@@ -23,9 +23,13 @@ public:
     explicit Bus(Cartridge &&cartridge)
         : cartridge(std::move(cartridge))
         , ram(2 * 1024)
+        , ppu(&this->cartridge)
     {}
 
     ~Bus() = default;
+
+    Bus(Bus&&) = delete;
+    Bus& operator=(Bus&&) = delete;
 
     void write(uint16 addr, uint8 data);
     uint8 read(uint16 addr);

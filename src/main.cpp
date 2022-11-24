@@ -27,25 +27,25 @@ namespace {
 }
 
 Cartridge create_test_cartridge() {
-    Cartridge cart(1, 1, std::make_unique<Mapper00NROM>(1, 1));
+    auto cart = Cartridge::load_cartridge("roms/nestest.nes");
 
-    std::stringstream program;
-    program << "A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA";
-
-    int addr = 0;
-    while (!program.eof()) {
-        std::string byte;
-        program >> byte;
-        uint8 digit = std::stoi(byte, nullptr, 16);
-        cart.prg[addr++] = digit;
-    }
-
-    // $FFFC and $FFFD get mapped by our mapper to index 3FFC and 3FFD in the program memory
-    // Our program starts at $0000 in program memory, but since $0000 is mapped to the cpu ram,
-    // we'll say our program starts at $8000, which will get mapped by the mapper to index 0
-    // on the cartridge.
-    cart.prg[0x3FFD] = 0x80;
-    cart.prg[0x3FFC] = 0x00;
+//    std::stringstream program;
+//    program << "A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA";
+//
+//    int addr = 0;
+//    while (!program.eof()) {
+//        std::string byte;
+//        program >> byte;
+//        uint8 digit = std::stoi(byte, nullptr, 16);
+//        cart.prg[addr++] = digit;
+//    }
+//
+//    // $FFFC and $FFFD get mapped by our mapper to index 3FFC and 3FFD in the program memory
+//    // Our program starts at $0000 in program memory, but since $0000 is mapped to the cpu ram,
+//    // we'll say our program starts at $8000, which will get mapped by the mapper to index 0
+//    // on the cartridge.
+//    cart.prg[0x3FFD] = 0x80;
+//    cart.prg[0x3FFC] = 0x00;
 
     return cart;
 }

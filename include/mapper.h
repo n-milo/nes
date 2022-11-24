@@ -40,7 +40,9 @@ public:
     }
 
     std::optional<uint32> map_ppu_read(uint16 addr) override {
-        if (addr >= 0x8000 && addr <= 0xFFFF) {
+        // 0 to 1fff indexes the palette memory
+        // starts at index 0 so no mapping is required
+        if (addr >= 0 && addr <= 0x1fff) {
             return addr;
         }
         return {};
