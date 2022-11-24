@@ -37,7 +37,7 @@ void Font::render_to_surface(SDL_Surface *surface, int x, int y, std::string_vie
                         int bit = rows[row] & (1 << col);
                         int tx = (xadvance + col) * scale + pixel_x + x;
                         int ty = row * scale + pixel_y + y;
-                        if (bit)
+                        if (bit && tx >= 0 && ty >= 0 && tx < surface->w && ty < surface->h)
                             pixels[tx + ty * surface->w] = 0xFF000000 | (color.r << 16) | (color.g << 8) | color.b;
                     }
                 }

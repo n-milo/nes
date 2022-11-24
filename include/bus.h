@@ -20,6 +20,8 @@ public:
 
     std::vector<uint8> ram;
 
+    explicit Bus(const char *file) : Bus(Cartridge::load_cartridge(file)) {}
+
     explicit Bus(Cartridge &&cartridge)
         : cartridge(std::move(cartridge))
         , ram(2 * 1024)

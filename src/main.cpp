@@ -26,30 +26,6 @@ namespace {
     constexpr SDL_Color blue = {255, 127, 127, 255};
 }
 
-Cartridge create_test_cartridge() {
-    auto cart = Cartridge::load_cartridge("roms/nestest.nes");
-
-//    std::stringstream program;
-//    program << "A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA";
-//
-//    int addr = 0;
-//    while (!program.eof()) {
-//        std::string byte;
-//        program >> byte;
-//        uint8 digit = std::stoi(byte, nullptr, 16);
-//        cart.prg[addr++] = digit;
-//    }
-//
-//    // $FFFC and $FFFD get mapped by our mapper to index 3FFC and 3FFD in the program memory
-//    // Our program starts at $0000 in program memory, but since $0000 is mapped to the cpu ram,
-//    // we'll say our program starts at $8000, which will get mapped by the mapper to index 0
-//    // on the cartridge.
-//    cart.prg[0x3FFD] = 0x80;
-//    cart.prg[0x3FFC] = 0x00;
-
-    return cart;
-}
-
 class NesFrontend {
 public:
     SDL_Window *window;
@@ -61,7 +37,7 @@ public:
     Bus bus;
     std::map<uint16, std::string> disassembly;
 
-    NesFrontend() : font("monogram-bitmap.json"), bus(create_test_cartridge()) {
+    NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes") {
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             panic("could not init SDL");
         }
@@ -87,7 +63,7 @@ public:
         SDL_UnlockSurface(screen);
 
         init_cpu();
-        disassembly = R6502::disassemble(bus, 0x8000, 0x8020);
+        disassembly = R6502::disassemble(bus, 0x8000, 0xd000);
 
         printf("Frontend initialized successfully.\n");
     }
@@ -155,14 +131,37 @@ public:
         render_text(5, 250, "N = clock once");
 
         // render disassembly
-        {
-            int y = 100;
-            for (auto &[addr, instruction]: disassembly) {
-                auto color = (addr == cpu.pc) ? blue : white;
-                render_text(TEXT_START, y, string_printf("$%04x: %s", addr, instruction.c_str()), color);
-                y += 20;
+        auto render_disassembly = [&](int y) {
+            auto current_instruction = disassembly.find(cpu.pc);
+            if (current_instruction == disassembly.end()) {
+                render_text(TEXT_START, y, "???");
+                render_text(TEXT_START, y+20, "Could not find:");
+                render_text(TEXT_START, y+40, "  disassembly[pc]");
+                return;
             }
-        }
+
+            // render the 10 instructions above the current one
+            auto prev = current_instruction;
+            for (int i = 0; i < 10; i++) {
+                if (prev == disassembly.begin())
+                    break;
+                --prev;
+                render_text(TEXT_START, y + (9-i)*20, string_printf("$%04x: %s", prev->first, prev->second.c_str()), white);
+            }
+
+            // render the current instruction
+            render_text(TEXT_START, y + 10*20, string_printf("$%04x: %s", current_instruction->first, current_instruction->second.c_str()), blue);
+
+            // render the next 10 instructions
+            auto next = current_instruction;
+            for (int i = 0; i < 10; i++) {
+                ++next;
+                if (next == disassembly.end())
+                    break;
+                render_text(TEXT_START, y + (i+11)*20, string_printf("$%04x: %s", next->first, next->second.c_str()), white);
+            }
+        };
+        render_disassembly(100);
 
         auto render_memory = [&](uint16 start_addr, const char *name, int x, int y) {
             render_text(x, y, name);
