@@ -38,7 +38,10 @@ public:
     Bus bus;
     std::map<uint16, std::string> disassembly;
 
+    uint64 last_time;
     bool full_speed = false;
+    int frames = 0;
+    float frame_time = 0;
 
     NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes") {
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -59,6 +62,8 @@ public:
         init_cpu();
         disassembly = R6502::disassemble(bus, 0x8000, 0xd000);
 
+        last_time = SDL_GetPerformanceCounter();
+
         printf("Frontend initialized successfully.\n");
     }
 
@@ -72,9 +77,20 @@ public:
     }
 
     bool update() {
+        uint64 now = SDL_GetPerformanceCounter();
+        float delta = (float) (now-last_time) / (float) SDL_GetPerformanceFrequency();
+        last_time = now;
+
         if (full_speed) {
-            bus.clock();
             // TODO: timing so it goes at 60 Hz
+            bus.execute_one_frame();
+            frames++;
+            frame_time += delta;
+            if (frame_time >= 1.0f) {
+                frame_time -= 1.0f;
+                printf("%d fps\n", frames);
+                frames = 0;
+            }
         }
 
         SDL_FillRect(window_surface, nullptr, 0);
