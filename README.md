@@ -6,7 +6,7 @@ the browser using [emscripten](https://emscripten.org/).
 ## Features
 
 - [x] Fully functional 6502 emulator
-- [x] Cartridge loading and address mapping
+- [x] .nes ROM file loading and address mapping
 - [ ] In progress: PPU rendering
 - [ ] APU and sound
 
