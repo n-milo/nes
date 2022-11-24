@@ -13,8 +13,7 @@ Font::Font(const char *bitmap_json) {
 
 SDL_Surface *Font::render_text(std::string_view text, SDL_Color color, int scale) const {
     int width = static_cast<int>(text.length()) * (TEXT_COLS + 1) * scale;
-    SDL_Surface *surface = SDL_CreateRGBSurface(0, width, TEXT_ROWS * scale, 32, 0, 0, 0, 0xFF000000);
-    ASSERT(surface, "SDL_CreateRGBSurface failed: %s", SDL_GetError());
+    SDL_Surface *surface = gfx::create_surface(width, TEXT_ROWS * scale);
     render_to_surface(surface, 0, 0, text, color, scale);
     return surface;
 }

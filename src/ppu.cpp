@@ -4,9 +4,9 @@
 extern SDL_Color palette_array[64];
 
 PPU::PPU(Cartridge *cartridge) : cartridge(cartridge) {
-    screen = SDL_CreateRGBSurface(0, 256, 240, 32, 0, 0, 0, 0);
-    pattern_tables[0] = SDL_CreateRGBSurface(0, 128, 128, 32, 0, 0, 0, 0);
-    pattern_tables[1] = SDL_CreateRGBSurface(0, 128, 128, 32, 0, 0, 0, 0);
+    screen = gfx::create_surface(256, 240);
+    pattern_tables[0] = gfx::create_surface(128, 128);
+    pattern_tables[1] = gfx::create_surface(128, 128);
     ASSERT(screen, "failed to create surface");
 }
 

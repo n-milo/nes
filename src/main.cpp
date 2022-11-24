@@ -25,7 +25,7 @@ namespace {
     constexpr int INSTRUCTIONS_START = 400;
 
     constexpr SDL_Color white = {255, 255, 255, 255};
-    constexpr SDL_Color blue = {255, 127, 127, 255};
+    constexpr SDL_Color red = {255, 127, 127, 255};
 }
 
 class NesFrontend {
@@ -192,7 +192,7 @@ public:
             }
 
             // render the current instruction
-            render_text(TEXT_START, y + 10*20, string_printf("$%04x: %s", current_instruction->first, current_instruction->second.c_str()), blue);
+            render_text(TEXT_START, y + 10*20, string_printf("$%04x: %s", current_instruction->first, current_instruction->second.c_str()), red);
 
             // render the next 10 instructions
             auto next = current_instruction;
