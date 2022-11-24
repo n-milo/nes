@@ -37,6 +37,8 @@ public:
     Bus bus;
     std::map<uint16, std::string> disassembly;
 
+    bool full_speed = false;
+
     NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes") {
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             panic("could not init SDL");
@@ -78,6 +80,11 @@ public:
     }
 
     bool update() {
+        if (full_speed) {
+            bus.clock();
+            // TODO: timing so it goes at 60 Hz
+        }
+
         SDL_FillRect(window_surface, nullptr, 0);
 
         render_cpu();
@@ -96,8 +103,16 @@ public:
             case SDL_KEYDOWN:
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     return true;
-                } else if (event.key.keysym.sym == SDLK_n) {
-                    bus.clock();
+                } else if (event.key.keysym.sym == SDLK_SPACE) {
+                    full_speed = !full_speed;
+                }
+
+                if (!full_speed) {
+                    if (event.key.keysym.sym == SDLK_c) {
+                        bus.clock();
+                    } else if (event.key.keysym.sym == SDLK_n) {
+                        bus.execute_one_instruction();
+                    }
                 }
                 break;
             }
@@ -128,7 +143,9 @@ public:
                     string_printf("Cycles = %d", cpu.cycles));
 
         // render instructions
-        render_text(5, 250, "N = clock once");
+        render_text(5, 250, "C = clock once");
+        render_text(5, 270, "N = step once");
+        render_text(5, 290, "SPACE = start/stop");
 
         // render disassembly
         auto render_disassembly = [&](int y) {

@@ -100,6 +100,7 @@ public:
 
     uint8 cycles = 0; // cycles left in current instruction
     uint8 last_executed_opcode = 0;
+    bool finished_instruction = false;
 
     // signals for the processor
     bool clock(Bus &bus);

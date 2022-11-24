@@ -37,5 +37,6 @@ public:
     uint8 read(uint16 addr);
 
     void clock();
+    void execute_one_instruction();
     void reset();
 };

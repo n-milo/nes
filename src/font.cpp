@@ -23,7 +23,14 @@ void Font::render_to_surface(SDL_Surface *surface, int x, int y, std::string_vie
 
     auto pixels = reinterpret_cast<uint32 *>(surface->pixels);
     int xadvance = 0;
+    int yadvance = 0;
     for (auto &c : text) {
+        if (c == '\n') {
+            yadvance += 10;
+            xadvance = 0;
+            continue;
+        }
+
         auto s = std::string(1, c);
         auto it = characters.find(s);
         ASSERT(it != characters.end(), "unexpected character or string '%s'", s.c_str());
@@ -36,7 +43,7 @@ void Font::render_to_surface(SDL_Surface *surface, int x, int y, std::string_vie
                     for (int pixel_x = 0; pixel_x < scale; pixel_x++) {
                         int bit = rows[row] & (1 << col);
                         int tx = (xadvance + col) * scale + pixel_x + x;
-                        int ty = row * scale + pixel_y + y;
+                        int ty = (yadvance + row) * scale + pixel_y + y;
                         if (bit && tx >= 0 && ty >= 0 && tx < surface->w && ty < surface->h)
                             pixels[tx + ty * surface->w] = 0xFF000000 | (color.r << 16) | (color.g << 8) | color.b;
                     }

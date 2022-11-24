@@ -8,6 +8,7 @@ extern const Instruction instruction_lookup_table[256];
 
 bool R6502::clock(Bus &bus) {
     if (cycles == 0) {
+        finished_instruction = true;
         uint8 opcode = read(bus, pc++);
         last_executed_opcode = opcode;
         auto &instr = instruction_lookup_table[opcode];

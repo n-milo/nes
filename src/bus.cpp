@@ -32,3 +32,9 @@ void Bus::clock() {
 void Bus::reset() {
     cpu.reset(*this);
 }
+
+void Bus::execute_one_instruction() {
+    cpu.finished_instruction = false;
+    while (!cpu.finished_instruction)
+        clock();
+}
