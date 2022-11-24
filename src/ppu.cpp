@@ -3,11 +3,11 @@
 
 extern SDL_Color palette_array[64];
 
-PPU::PPU(Cartridge *cartridge)
-    : cartridge(cartridge)
-    , screen_surface(SDL_CreateRGBSurface(0, 256, 240, 32, 0, 0, 0, 0))
-{
-    ASSERT(screen_surface, "failed to create surface");
+PPU::PPU(Cartridge *cartridge) : cartridge(cartridge) {
+    screen = SDL_CreateRGBSurface(0, 256, 240, 32, 0, 0, 0, 0);
+    pattern_tables[0] = SDL_CreateRGBSurface(0, 128, 128, 32, 0, 0, 0, 0);
+    pattern_tables[1] = SDL_CreateRGBSurface(0, 128, 128, 32, 0, 0, 0, 0);
+    ASSERT(screen, "failed to create surface");
 }
 
 void PPU::ppu_write(uint16 addr, uint8 data) {
@@ -112,10 +112,10 @@ uint8 PPU::cpu_read(uint16 addr) {
         break;
 
     case 7:
+        // all reads except the palette memory are delayed by one frame
         if (combined_address > 0x3f00) {
             return data_buffer;
         } else {
-            // all reads except the palette memory are delayed by one frame
             uint8 old = data_buffer;
             data_buffer = ppu_read(combined_address);
             return old;
@@ -129,9 +129,13 @@ uint8 PPU::cpu_read(uint16 addr) {
     return 0;
 }
 
-SDL_Surface *PPU::create_pattern_table(int table, uint8 palette) {
-    SDL_Surface *surface = SDL_CreateRGBSurface(0, 256, 240, 32, 0, 0, 0, 0);
-    auto pixels = reinterpret_cast<uint32 *>(surface);
+SDL_Surface *PPU::render_screen() {
+    return screen;
+}
+
+SDL_Surface *PPU::render_pattern_table(int table, uint8 palette) {
+    SDL_Surface *surface = pattern_tables[table];
+    SDL_LockSurface(surface);
 
     for (int y = 0; y < 16; y++) {
         for (int x = 0; x < 16; x++) {
@@ -142,19 +146,21 @@ SDL_Surface *PPU::create_pattern_table(int table, uint8 palette) {
                 uint8 tile_msb = ppu_read(table * 0x1000 + tile_index * 16 + row + 8);
 
                 for (int col = 0; col < 8; col++) {
-                    int bit = 1 << (7 - col); // most-significant bit is left-most pixel
-                    uint8 pixel = (tile_lsb & bit) + (tile_msb & bit);
+                    int shift = 7-col;
+                    int bit = 1 << shift; // most-significant bit is left-most pixel
+                    uint8 pixel = ((tile_lsb & bit) >> shift) + ((tile_msb & bit) >> shift);
 
                     int pixel_x = x * 8 + col;
                     int pixel_y = y * 8 + row;
                     auto color = color_from_palette(palette, pixel);
-                    pixels[pixel_x + pixel_y * surface->w] = (color.r << 16) | (color.g << 8) | color.b;
+                    gfx::set_pixel(surface, pixel_x, pixel_y, color);
                 }
             }
         }
     }
 
-    return nullptr;
+    SDL_UnlockSurface(surface);
+    return surface;
 }
 
 SDL_Color PPU::color_from_palette(uint8 palette, uint8 pixel) {
@@ -165,10 +171,10 @@ SDL_Color PPU::color_from_palette(uint8 palette, uint8 pixel) {
 void PPU::clock() {
     int x = cycle-1;
     int y = scanline;
-    if (gfx::in_bounds(screen_surface, x, y)) {
-        SDL_LockSurface(screen_surface);
-        gfx::set_pixel(screen_surface, x, y, palette_array[rand() % 64]);
-        SDL_UnlockSurface(screen_surface);
+    if (gfx::in_bounds(screen, x, y)) {
+        SDL_LockSurface(screen);
+        gfx::set_pixel(screen, x, y, palette_array[rand() % 64]);
+        SDL_UnlockSurface(screen);
     }
 
     cycle++;

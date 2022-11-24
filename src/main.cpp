@@ -21,7 +21,8 @@ namespace {
     constexpr int NES_HEIGHT = 240;
 
     constexpr int PADDING = 5;
-    constexpr int TEXT_START = 2*PADDING + NES_WIDTH;
+    constexpr int TEXT_START = 2*PADDING + NES_WIDTH + 10;
+    constexpr int INSTRUCTIONS_START = 400;
 
     constexpr SDL_Color white = {255, 255, 255, 255};
     constexpr SDL_Color blue = {255, 127, 127, 255};
@@ -97,9 +98,18 @@ public:
 
         render_cpu();
 
+        auto screen = bus.ppu.render_screen();
+        SDL_Rect dst = {PADDING, PADDING, screen->w, screen->h};
+        SDL_BlitSurface(screen, nullptr, window_surface, &dst);
 
-        SDL_Rect dst = {PADDING, PADDING, bus.ppu.screen_surface->w, bus.ppu.screen_surface->h};
-        SDL_BlitSurface(bus.ppu.screen_surface, nullptr, window_surface, &dst);
+        auto pattern = bus.ppu.render_pattern_table(0, 0);
+        dst = {PADDING, 250, pattern->w, pattern->h};
+        SDL_BlitSurface(pattern, nullptr, window_surface, &dst);
+
+        pattern = bus.ppu.render_pattern_table(1, 0);
+        dst = {PADDING+130, 250, pattern->w, pattern->h};
+        SDL_BlitSurface(pattern, nullptr, window_surface, &dst);
+
 
         SDL_UpdateWindowSurface(window);
 
@@ -156,11 +166,11 @@ public:
                     string_printf("Cycles = %d", cpu.cycles));
 
         // render instructions
-        render_text(5, 250, "C = clock once");
-        render_text(5, 270, "N = step once");
-        render_text(5, 290, "F = render once");
-        render_text(5, 310, "SPACE = start/stop");
-        render_text(5, 330, "R = reset");
+        render_text(5, INSTRUCTIONS_START+0,  "C = clock once");
+        render_text(5, INSTRUCTIONS_START+20, "N = step once");
+        render_text(5, INSTRUCTIONS_START+40, "F = render once");
+        render_text(5, INSTRUCTIONS_START+60, "SPACE = start/stop");
+        render_text(5, INSTRUCTIONS_START+80, "R = reset");
 
         // render disassembly
         auto render_disassembly = [&](int y) {

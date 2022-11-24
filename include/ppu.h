@@ -64,10 +64,11 @@ class PPU {
     int scanline = 0;
     int cycle = 0;
 
+    SDL_Surface *screen;
+    SDL_Surface *pattern_tables[2];
+
 public:
     bool finished_frame = false;
-
-    SDL_Surface *screen_surface;
 
     explicit PPU(Cartridge *cartridge);
 
@@ -76,7 +77,9 @@ public:
     void cpu_write(uint16 addr, uint8 data);
     uint8 cpu_read(uint16 addr);
 
-    SDL_Surface *create_pattern_table(int table, uint8 palette);
+    SDL_Surface *render_screen();
+    SDL_Surface *render_pattern_table(int table, uint8 palette);
+
     SDL_Color color_from_palette(uint8 palette, uint8 pixel);
 
     void clock();
