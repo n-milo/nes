@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include <nlohmann/json.hpp>
+#include <gfx.h>
 
 Font::Font(const char *bitmap_json) {
     std::ifstream f(bitmap_json);
@@ -21,7 +22,6 @@ SDL_Surface *Font::render_text(std::string_view text, SDL_Color color, int scale
 void Font::render_to_surface(SDL_Surface *surface, int x, int y, std::string_view text, SDL_Color color, int scale) const {
     SDL_LockSurface(surface);
 
-    auto pixels = reinterpret_cast<uint32 *>(surface->pixels);
     int xadvance = 0;
     int yadvance = 0;
     for (auto &c : text) {
@@ -45,7 +45,7 @@ void Font::render_to_surface(SDL_Surface *surface, int x, int y, std::string_vie
                         int tx = (xadvance + col) * scale + pixel_x + x;
                         int ty = (yadvance + row) * scale + pixel_y + y;
                         if (bit && tx >= 0 && ty >= 0 && tx < surface->w && ty < surface->h)
-                            pixels[tx + ty * surface->w] = 0xFF000000 | (color.r << 16) | (color.g << 8) | color.b;
+                            gfx::set_pixel(surface, tx, ty, color);
                     }
                 }
             }

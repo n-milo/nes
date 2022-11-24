@@ -26,7 +26,11 @@ uint8 Bus::read(uint16 addr) {
 }
 
 void Bus::clock() {
-    cpu.clock(*this);
+    ppu.clock();
+    if (system_clock % 3 == 0) { // cpu clocks at 1/3rd the rate of the ppu
+        cpu.clock(*this);
+    }
+    system_clock++;
 }
 
 void Bus::reset() {
@@ -36,5 +40,11 @@ void Bus::reset() {
 void Bus::execute_one_instruction() {
     cpu.finished_instruction = false;
     while (!cpu.finished_instruction)
+        clock();
+}
+
+void Bus::execute_one_frame() {
+    ppu.finished_frame = false;
+    while (!ppu.finished_frame)
         clock();
 }

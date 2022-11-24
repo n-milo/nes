@@ -61,8 +61,15 @@ class PPU {
     uint8 data_buffer = 0;
     uint16 combined_address = 0;
 
+    int scanline = 0;
+    int cycle = 0;
+
 public:
-    explicit PPU(Cartridge *cartridge) : cartridge(cartridge) {}
+    bool finished_frame = false;
+
+    SDL_Surface *screen_surface;
+
+    explicit PPU(Cartridge *cartridge);
 
     void ppu_write(uint16 addr, uint8 data);
     uint8 ppu_read(uint16 addr);
@@ -71,4 +78,6 @@ public:
 
     SDL_Surface *create_pattern_table(int table, uint8 palette);
     SDL_Color color_from_palette(uint8 palette, uint8 pixel);
+
+    void clock();
 };

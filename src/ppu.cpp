@@ -1,6 +1,14 @@
 #include <ppu.h>
+#include <gfx.h>
 
 extern SDL_Color palette_array[64];
+
+PPU::PPU(Cartridge *cartridge)
+    : cartridge(cartridge)
+    , screen_surface(SDL_CreateRGBSurface(0, 256, 240, 32, 0, 0, 0, 0))
+{
+    ASSERT(screen_surface, "failed to create surface");
+}
 
 void PPU::ppu_write(uint16 addr, uint8 data) {
     if (cartridge->ppu_write(addr, data)) {
@@ -122,7 +130,7 @@ uint8 PPU::cpu_read(uint16 addr) {
 }
 
 SDL_Surface *PPU::create_pattern_table(int table, uint8 palette) {
-    SDL_Surface *surface = SDL_CreateRGBSurface(0, 240, 240, 32, 0, 0, 0, 0);
+    SDL_Surface *surface = SDL_CreateRGBSurface(0, 256, 240, 32, 0, 0, 0, 0);
     auto pixels = reinterpret_cast<uint32 *>(surface);
 
     for (int y = 0; y < 16; y++) {
@@ -152,6 +160,26 @@ SDL_Surface *PPU::create_pattern_table(int table, uint8 palette) {
 SDL_Color PPU::color_from_palette(uint8 palette, uint8 pixel) {
     uint8 index = ppu_read(0x3f00 + (palette << 2) + pixel);
     return palette_array[index];
+}
+
+void PPU::clock() {
+    int x = cycle-1;
+    int y = scanline;
+    if (gfx::in_bounds(screen_surface, x, y)) {
+        SDL_LockSurface(screen_surface);
+        gfx::set_pixel(screen_surface, x, y, palette_array[rand() % 64]);
+        SDL_UnlockSurface(screen_surface);
+    }
+
+    cycle++;
+    if (cycle >= 341) {
+        cycle = 0;
+        scanline++;
+        if (scanline >= 261) {
+            scanline = -1;
+            finished_frame = true;
+        }
+    }
 }
 
 SDL_Color palette_array[64] = {

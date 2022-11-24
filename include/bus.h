@@ -18,6 +18,8 @@ public:
     R6502 cpu;
     PPU ppu;
 
+    uint64 system_clock = 0;
+
     std::vector<uint8> ram;
 
     explicit Bus(const char *file) : Bus(Cartridge::load_cartridge(file)) {}
@@ -38,5 +40,6 @@ public:
 
     void clock();
     void execute_one_instruction();
+    void execute_one_frame();
     void reset();
 };

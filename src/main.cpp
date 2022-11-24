@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <memory>
+#include <gfx.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -30,7 +31,7 @@ class NesFrontend {
 public:
     SDL_Window *window;
     SDL_Surface *window_surface;
-    SDL_Surface *screen;
+//    SDL_Surface *screen;
 
     Font font;
 
@@ -54,15 +55,6 @@ public:
 
         window_surface = SDL_GetWindowSurface(window);
         ASSERT(window_surface, "expected window surface");
-
-        screen = SDL_CreateRGBSurface(0, NES_WIDTH, NES_HEIGHT, 24, 0, 0, 0, 0);
-        ASSERT(screen, "expected surface");
-
-        SDL_LockSurface(screen);
-        for (int i = 0; i < screen->pitch * screen->h; i++) {
-            reinterpret_cast<char *>(screen->pixels)[i] = rand() & 0xFF;
-        }
-        SDL_UnlockSurface(screen);
 
         init_cpu();
         disassembly = R6502::disassemble(bus, 0x8000, 0xd000);
@@ -89,8 +81,9 @@ public:
 
         render_cpu();
 
-        SDL_Rect dst = {PADDING, PADDING, screen->w, screen->h};
-        SDL_BlitSurface(screen, nullptr, window_surface, &dst);
+
+        SDL_Rect dst = {PADDING, PADDING, bus.ppu.screen_surface->w, bus.ppu.screen_surface->h};
+        SDL_BlitSurface(bus.ppu.screen_surface, nullptr, window_surface, &dst);
 
         SDL_UpdateWindowSurface(window);
 
@@ -105,6 +98,8 @@ public:
                     return true;
                 } else if (event.key.keysym.sym == SDLK_SPACE) {
                     full_speed = !full_speed;
+                } else if (event.key.keysym.sym == SDLK_r) {
+                    bus.reset();
                 }
 
                 if (!full_speed) {
@@ -112,6 +107,8 @@ public:
                         bus.clock();
                     } else if (event.key.keysym.sym == SDLK_n) {
                         bus.execute_one_instruction();
+                    } else if (event.key.keysym.sym == SDLK_f) {
+                        bus.execute_one_frame();
                     }
                 }
                 break;
@@ -145,7 +142,9 @@ public:
         // render instructions
         render_text(5, 250, "C = clock once");
         render_text(5, 270, "N = step once");
-        render_text(5, 290, "SPACE = start/stop");
+        render_text(5, 290, "F = render once");
+        render_text(5, 310, "SPACE = start/stop");
+        render_text(5, 330, "R = reset");
 
         // render disassembly
         auto render_disassembly = [&](int y) {
