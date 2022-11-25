@@ -7,6 +7,18 @@
 constexpr SDL_Color white = {255, 255, 255, 255};
 constexpr SDL_Color red = {255, 127, 127, 255};
 
+enum class ScreenVisualization {
+    Display,
+    NametableID,
+    Patterns0,
+    Patterns1,
+};
+
+ScreenVisualization& operator++(ScreenVisualization &v) {
+    v = static_cast<ScreenVisualization>((static_cast<int>(v) + 1) % 4);
+    return v;
+}
+
 class NesFrontend {
 public:
     SDL_Window *window;
@@ -23,6 +35,7 @@ public:
     int frames = 0;
     float frame_time = 0;
     int current_palette = 0;
+    ScreenVisualization visualization = ScreenVisualization::Display;
 
     NesFrontend();
     ~NesFrontend();

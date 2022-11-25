@@ -4,10 +4,16 @@
 
 #include <map>
 #include <array>
+#include <string>
 #include <string_view>
 
 class Font {
 public:
+    static Font &the_font() {
+        static Font font;
+        return font;
+    }
+
     static constexpr int TEXT_COLS = 5;
     static constexpr int TEXT_ROWS = 12;
 

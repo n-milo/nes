@@ -1,5 +1,6 @@
 #include <ppu.h>
 #include <gfx.h>
+#include <font.h>
 
 extern SDL_Color palette_array[64];
 
@@ -108,6 +109,7 @@ void PPU::cpu_write(uint16 addr, uint8 data) {
 
     case 7:
         ppu_write(combined_address, data);
+//        combined_address += (control.vram_addr_increment ? 32 : 1);
         break;
 
     default:
@@ -139,16 +141,16 @@ uint8 PPU::cpu_read(uint16 addr) {
     case 6:
         break;
 
-    case 7:
+    case 7: {
         // all reads except the palette memory are delayed by one frame
-        if (combined_address > 0x3f00) {
-            data_buffer = ppu_read(combined_address++);
-            return data_buffer;
-        } else {
-            uint8 old = data_buffer;
-            data_buffer = ppu_read(combined_address++);
-            return old;
-        }
+        uint8 data = data_buffer;
+        data_buffer = ppu_read(combined_address);
+        if (combined_address >= 0x3f00)
+            data = data_buffer;
+
+        combined_address += (control.vram_addr_increment ? 32 : 1);
+        return data;
+    }
 
     default:
         return 0;
@@ -219,14 +221,6 @@ void PPU::clock(bool &nmi_requested) {
         if (control.nmi_on_vblank) {
             nmi_requested = true;
         }
-    }
-
-    int x = cycle-1;
-    int y = scanline;
-    if (gfx::in_bounds(screen, x, y)) {
-        SDL_LockSurface(screen);
-        gfx::set_pixel(screen, x, y, palette_array[rand() % 64]);
-        SDL_UnlockSurface(screen);
     }
 
     cycle++;

@@ -14,8 +14,6 @@
 
 class PPU {
     Cartridge *cartridge;
-    uint8 name_table_mem[2][1024] = {};
-    uint8 palette_mem[32] = {};
 
     union {
         uint8 value = 0;
@@ -71,6 +69,9 @@ class PPU {
     uint8 *ppu_locate(uint16 addr);
 
 public:
+    uint8 name_table_mem[2][1024] = {};
+    uint8 palette_mem[32] = {};
+
     bool finished_frame = false;
 
     explicit PPU(Cartridge *cartridge);

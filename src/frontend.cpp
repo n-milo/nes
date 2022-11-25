@@ -20,6 +20,8 @@ namespace {
 }
 
 NesFrontend::NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes") {
+    Font::the_font() = font;
+
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         panic("could not init SDL");
     }
@@ -94,23 +96,48 @@ bool NesFrontend::update() {
 
     constexpr int GAME_SCALE = 3;
     auto screen = bus.ppu.render_screen();
+    auto pattern0 = bus.ppu.render_pattern_table(0, current_palette);
+    auto pattern1 = bus.ppu.render_pattern_table(1, current_palette);
+
     SDL_Rect dst = {5, 5, screen->w*GAME_SCALE, screen->h*GAME_SCALE};
     SDL_BlitScaled(screen, nullptr, window_surface, &dst);
 
-    auto pattern = bus.ppu.render_pattern_table(0, current_palette);
-    dst = {780, 597, pattern->w, pattern->h};
-    SDL_BlitSurface(pattern, nullptr, window_surface, &dst);
+    auto render_nametable_values = [&]() {
+        for (int y = 0; y < 30; y++) {
+            for (int x = 0; x < 32; x++) {
+                uint8 id = bus.ppu.name_table_mem[0][y * 32 + x];
+                dst = {x * 24 + 5, y * 24 + 5, 24, 24};
 
-    pattern = bus.ppu.render_pattern_table(1, current_palette);
-    dst = {910, 597, pattern->w, pattern->h};
-    SDL_BlitSurface(pattern, nullptr, window_surface, &dst);
+                if (visualization == ScreenVisualization::NametableID) {
+                    char buf[3];
+                    snprintf(buf, 3, "%02X", id);
+                    auto text = Font::the_font().render_text(buf, SDL_Color{255, 255, 255}, 2);
+                    SDL_BlitSurface(text, nullptr, window_surface, &dst);
+                } else {
+                    SDL_Rect src = {(id & 0xf) << 3, ((id >> 4) & 0xf) << 3, 8, 8};
+                    SDL_BlitScaled(visualization == ScreenVisualization::Patterns0 ? pattern0 : pattern1,
+                                   &src, window_surface, &dst);
+                }
+            }
+        }
+    };
 
-    dst = {780+current_palette*20-2, 589-2, pattern->w, pattern->h};
+    if (visualization != ScreenVisualization::Display) {
+        render_nametable_values();
+    }
+
+    dst = {780, 597, pattern0->w, pattern0->h};
+    SDL_BlitSurface(pattern0, nullptr, window_surface, &dst);
+
+    dst = {910, 597, pattern1->w, pattern1->h};
+    SDL_BlitSurface(pattern1, nullptr, window_surface, &dst);
+
+    dst = {780+current_palette*20-2, 589-2, selected_palette_surface->w, selected_palette_surface->h};
     SDL_BlitSurface(selected_palette_surface, nullptr, window_surface, &dst);
 
     for (int i = 0; i < 8; i++) {
         auto palette = bus.ppu.render_palette(i);
-        dst = {780+i*20, 589, pattern->w, pattern->h};
+        dst = {780+i*20, 589, palette->w, palette->h};
         SDL_BlitSurface(palette, nullptr, window_surface, &dst);
     }
 
@@ -131,6 +158,8 @@ bool NesFrontend::update() {
                 bus.reset();
             } else if (event.key.keysym.sym == SDLK_p) {
                 current_palette = (current_palette+1) % 8;
+            } else if (event.key.keysym.sym == SDLK_v) {
+                ++visualization;
             }
 
             if (!full_speed) {
