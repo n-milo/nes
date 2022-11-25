@@ -61,7 +61,7 @@ NesFrontend::NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes
 
     last_time = SDL_GetPerformanceCounter();
 
-    printf("Frontend initialized successfully.\n");
+    LOG_INFO("Frontend initialized successfully.");
 }
 
 NesFrontend::~NesFrontend() {
@@ -85,7 +85,7 @@ bool NesFrontend::update() {
         frame_time += delta;
         if (frame_time >= 1.0f) {
             frame_time -= 1.0f;
-            printf("%d fps\n", frames);
+            LOG_INFO("%d fps", frames);
             frames = 0;
         }
     }

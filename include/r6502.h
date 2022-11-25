@@ -108,6 +108,10 @@ public:
     void irq(Bus &bus);
     void nmi(Bus &bus);
 
+    /// Disassembles one instruction at addr, and then moves addr to point to the end of the instruction.
+    static std::string disassemble_instruction(Bus &bus, uint16 &addr);
+
+    /// Disassembles a range of instructions from addresses [start, end).
     static std::map<uint16, std::string> disassemble(Bus &bus, uint16 start, uint16 end);
 
     void set_flag(Flags flag, bool set) {

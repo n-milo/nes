@@ -9,6 +9,10 @@ extern const Instruction instruction_lookup_table[256];
 bool R6502::clock(Bus &bus) {
     if (cycles == 0) {
         finished_instruction = true;
+
+        uint16 trace_addr = pc;
+        LOG_TRACE("executing $%04x: %s", pc, R6502::disassemble_instruction(bus, trace_addr).c_str());
+
         uint8 opcode = read(bus, pc++);
         last_executed_opcode = opcode;
         auto &instr = instruction_lookup_table[opcode];
@@ -503,8 +507,7 @@ bool R6502::calculate_operation(Bus &bus,
 
     default:
     case XXX:
-        fprintf(stderr, "illegal instruction at 0x%x", pc);
-        __builtin_trap();
+        panic("illegal instruction at 0x%x", pc);
     }
 }
 
@@ -564,73 +567,79 @@ std::map<uint16, std::string> R6502::disassemble(Bus &bus, uint16 start, uint16 
     uint16 addr = start;
     while (addr <= end) {
         uint16 line_start = addr;
-        uint8 opcode = bus.read(addr++);
-        auto &instr = instruction_lookup_table[opcode];
-
-        auto disassembled = std::string(op_to_string(instr.opcode));
-
-        int hi, lo;
-        char buf[256] = {};
-
-        switch (instr.addr_mode) {
-
-        case ACC:
-            buf[0] = 'A';
-            break;
-        case IMM:
-            snprintf(buf, sizeof buf, "#$%02x", bus.read(addr++));
-            break;
-        case ABS:
-            lo = bus.read(addr++);
-            hi = bus.read(addr++);
-            snprintf(buf, sizeof buf, "$%04x", (lo | (hi << 8)));
-            break;
-        case ZP0:
-            snprintf(buf, sizeof buf, "$%02x", bus.read(addr++));
-            break;
-        case ZPX:
-            snprintf(buf, sizeof buf, "$%02x,X", bus.read(addr++));
-            break;
-        case ZPY:
-            snprintf(buf, sizeof buf, "$%02x,Y", bus.read(addr++));
-            break;
-        case ABX:
-            lo = bus.read(addr++);
-            hi = bus.read(addr++);
-            snprintf(buf, sizeof buf, "$%04x,X", (lo | (hi << 8)));
-            break;
-        case ABY:
-            lo = bus.read(addr++);
-            hi = bus.read(addr++);
-            snprintf(buf, sizeof buf, "$%04x,Y", (lo | (hi << 8)));
-            break;
-        case IMP:
-            break;
-        case REL:
-            lo = bus.read(addr++);
-            snprintf(buf, sizeof buf, "$%02x [$%04x]", lo, addr + static_cast<int8>(lo));
-            break;
-        case IZX:
-            snprintf(buf, sizeof buf, "($%02x,X)", bus.read(addr++));
-            break;
-        case IZY:
-            snprintf(buf, sizeof buf, "($%02x),Y", bus.read(addr++));
-            break;
-        case IND:
-            lo = bus.read(addr++);
-            hi = bus.read(addr++);
-            snprintf(buf, sizeof buf, "($%04x)", (lo | (hi << 8)));
-            break;
-        }
-
-        if (buf[0] != 0) {
-            disassembled += " ";
-            disassembled += buf;
-        }
+        auto disassembled = R6502::disassemble_instruction(bus, addr);
         strings[line_start] = disassembled;
     }
 
     return strings;
+}
+
+std::string R6502::disassemble_instruction(Bus &bus, uint16 &addr) {
+    uint8 opcode = bus.read(addr++);
+    auto &instr = instruction_lookup_table[opcode];
+
+    auto disassembled = std::string(op_to_string(instr.opcode));
+
+    int hi, lo;
+    char buf[256] = {};
+
+    switch (instr.addr_mode) {
+
+    case ACC:
+        buf[0] = 'A';
+        break;
+    case IMM:
+        snprintf(buf, sizeof buf, "#$%02x", bus.read(addr++));
+        break;
+    case ABS:
+        lo = bus.read(addr++);
+        hi = bus.read(addr++);
+        snprintf(buf, sizeof buf, "$%04x", (lo | (hi << 8)));
+        break;
+    case ZP0:
+        snprintf(buf, sizeof buf, "$%02x", bus.read(addr++));
+        break;
+    case ZPX:
+        snprintf(buf, sizeof buf, "$%02x,X", bus.read(addr++));
+        break;
+    case ZPY:
+        snprintf(buf, sizeof buf, "$%02x,Y", bus.read(addr++));
+        break;
+    case ABX:
+        lo = bus.read(addr++);
+        hi = bus.read(addr++);
+        snprintf(buf, sizeof buf, "$%04x,X", (lo | (hi << 8)));
+        break;
+    case ABY:
+        lo = bus.read(addr++);
+        hi = bus.read(addr++);
+        snprintf(buf, sizeof buf, "$%04x,Y", (lo | (hi << 8)));
+        break;
+    case IMP:
+        break;
+    case REL:
+        lo = bus.read(addr++);
+        snprintf(buf, sizeof buf, "$%02x [$%04x]", lo, addr + static_cast<int8>(lo));
+        break;
+    case IZX:
+        snprintf(buf, sizeof buf, "($%02x,X)", bus.read(addr++));
+        break;
+    case IZY:
+        snprintf(buf, sizeof buf, "($%02x),Y", bus.read(addr++));
+        break;
+    case IND:
+        lo = bus.read(addr++);
+        hi = bus.read(addr++);
+        snprintf(buf, sizeof buf, "($%04x)", (lo | (hi << 8)));
+        break;
+    }
+
+    if (buf[0] != 0) {
+        disassembled += " ";
+        disassembled += buf;
+    }
+
+    return disassembled;
 }
 
 /*

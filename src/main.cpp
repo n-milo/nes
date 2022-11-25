@@ -81,7 +81,7 @@ int main() {
         xstat(path, &buf);
         auto now = buf.st_mtimespec;
         if (last_time.tv_sec != now.tv_sec || last_time.tv_nsec != now.tv_nsec) {
-            fprintf(stderr, "reloading file\n");
+            LOG_INFO("reloading file");
             reload_symbols();
             last_time = now;
         }

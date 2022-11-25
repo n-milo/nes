@@ -15,7 +15,7 @@ PPU::PPU(Cartridge *cartridge) : cartridge(cartridge) {
 
 uint8 *PPU::ppu_locate(uint16 addr) {
     if (addr >= PATTERN_START && addr <= PATTERN_END) {
-        fprintf(stderr, "warning: ppu address %04x should have mapped by the cartridge\n", addr);
+        LOG_WARN("ppu address %04x should have mapped by the cartridge", addr);
         return nullptr;
     } else if (addr >= NAMETABLE_START && addr <= NAMETABLE_END) {
         addr &= 0xfff;

@@ -7,6 +7,7 @@ add_library(nes src/r6502.cpp include/r6502.h src/bus.cpp include/bus.h include/
 include_directories(nes PUBLIC include)
 include_directories(nes PUBLIC /opt/homebrew/include)
 target_compile_options(nes PUBLIC -include common.h)
+target_compile_options(nes PUBLIC -DLOG_LEVEL=3)
 
 add_library(nes_frontend SHARED src/frontend.cpp src/gfx.cpp include/gfx.h)
 target_link_libraries(nes_frontend PUBLIC nes)
