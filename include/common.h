@@ -27,6 +27,13 @@ typedef int64_t int64;
     TRAP();            \
 } while(0)
 
+#define UNREACHABLE(...) do { \
+    fprintf(stderr, "[%s:%d] unreachable code reached: ", __FILE__, __LINE__); \
+    fprintf(stderr, __VA_ARGS__); \
+    fprintf(stderr, "\n"); \
+    TRAP();            \
+} while(0)
+
 #define panic(...) do { \
     fprintf(stderr, "[%s:%d] PANIC: ", __FILE__, __LINE__); \
     fprintf(stderr, __VA_ARGS__); \

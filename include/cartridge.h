@@ -5,12 +5,19 @@
 
 #include "mapper.h"
 
+enum class Mirroring {
+    Horizontal,
+    Vertical
+};
+
 class Cartridge {
     int num_prg_banks, num_chr_banks;
     std::unique_ptr<Mapper> mapper;
 
 public:
     std::vector<uint8> prg, chr;
+
+    Mirroring mirroring = Mirroring::Horizontal;
 
     Cartridge(int num_prg_banks, int num_chr_banks, std::unique_ptr<Mapper> &&mapper)
         : prg(num_prg_banks * 16*1024)

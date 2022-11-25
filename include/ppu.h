@@ -14,8 +14,7 @@
 
 class PPU {
     Cartridge *cartridge;
-    uint8 name_table_mem[2048] = {};
-    uint8 pattern_mem[8192] = {};
+    uint8 name_table_mem[2][1024] = {};
     uint8 palette_mem[32] = {};
 
     union {
@@ -67,6 +66,9 @@ class PPU {
     SDL_Surface *screen;
     SDL_Surface *pattern_tables[2] = {};
     SDL_Surface *palettes[8] = {};
+
+    /// Locates the address of addr somewhere in the ppu's RAM (name table, pattern, or palette memory arrays).
+    uint8 *ppu_locate(uint16 addr);
 
 public:
     bool finished_frame = false;

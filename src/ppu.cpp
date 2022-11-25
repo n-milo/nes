@@ -12,41 +12,70 @@ PPU::PPU(Cartridge *cartridge) : cartridge(cartridge) {
     ASSERT(screen, "failed to create surface");
 }
 
-void PPU::ppu_write(uint16 addr, uint8 data) {
-    if (cartridge->ppu_write(addr, data)) {
-        return;
-    } else if (addr >= PATTERN_START && addr <= PATTERN_END) {
+uint8 *PPU::ppu_locate(uint16 addr) {
+    if (addr >= PATTERN_START && addr <= PATTERN_END) {
         fprintf(stderr, "warning: ppu address %04x should have mapped by the cartridge\n", addr);
+        return nullptr;
     } else if (addr >= NAMETABLE_START && addr <= NAMETABLE_END) {
+        addr &= 0xfff;
+        switch (cartridge->mirroring) {
 
-    } else if (addr >= PALETTE_START && addr <= PALETTE_END) {
-        addr &= 0x1f;
-        if (addr == 0x10) addr = 0x0;
-        else if (addr == 0x14) addr = 0x4;
-        else if (addr == 0x18) addr = 0x8;
-        else if (addr == 0x1c) addr = 0xc;
-        palette_mem[addr] = data;
-    } else {
-    }
-}
+        case Mirroring::Vertical:
+            if (addr >= 0 && addr <= 0x3ff)
+                return &name_table_mem[0][addr & 0x3ff];
+            else if (addr >= 0x400 && addr <= 0x7ff)
+                return &name_table_mem[1][addr & 0x3ff];
+            else if (addr >= 0x800 && addr <= 0xbff)
+                return &name_table_mem[0][addr & 0x3ff];
+            else if (addr >= 0xc00 && addr <= 0xfff)
+                return &name_table_mem[1][addr & 0x3ff];
+            else
+                UNREACHABLE("ranges above covers all addresses");
 
-uint8 PPU::ppu_read(uint16 addr) {
-    if (auto data = cartridge->ppu_read(addr); data.has_value()) {
-        return *data;
-    } else if (addr >= PATTERN_START && addr <= PATTERN_END) {
-        fprintf(stderr, "warning: ppu address %04x should have mapped by the cartridge\n", addr);
-    } else if (addr >= NAMETABLE_START && addr <= NAMETABLE_END) {
-
+        case Mirroring::Horizontal:
+            if (addr >= 0 && addr <= 0x3ff)
+                return &name_table_mem[0][addr & 0x3ff];
+            else if (addr >= 0x400 && addr <= 0x7ff)
+                return &name_table_mem[0][addr & 0x3ff];
+            else if (addr >= 0x800 && addr <= 0xbff)
+                return &name_table_mem[1][addr & 0x3ff];
+            else if (addr >= 0xc00 && addr <= 0xfff)
+                return &name_table_mem[1][addr & 0x3ff];
+            else
+                UNREACHABLE("ranges above covers all addresses");
+        }
     } else if (addr >= PALETTE_START && addr <= PALETTE_END) {
         addr &= 0x1f;
         if (addr == 0x10) addr = 0x0;
         if (addr == 0x14) addr = 0x4;
         if (addr == 0x18) addr = 0x8;
         if (addr == 0x1c) addr = 0xc;
-        return palette_mem[addr];
+        return &palette_mem[addr];
     } else {
+        return nullptr;
     }
-    return 0;
+}
+
+void PPU::ppu_write(uint16 addr, uint8 data) {
+    if (cartridge->ppu_write(addr, data)) {
+        return;
+    } else {
+        uint8 *target = ppu_locate(addr);
+        if (target)
+            *target = data;
+    }
+}
+
+uint8 PPU::ppu_read(uint16 addr) {
+    if (auto data = cartridge->ppu_read(addr); data.has_value()) {
+        return *data;
+    } else {
+        uint8 *target = ppu_locate(addr);
+        if (target)
+            return *target;
+        else
+            return 0;
+    }
 }
 
 void PPU::cpu_write(uint16 addr, uint8 data) {
