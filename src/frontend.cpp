@@ -13,14 +13,10 @@
 
 namespace {
     constexpr int VIEWPORT_WIDTH = 1400;
-    constexpr int VIEWPORT_HEIGHT = 700;
+    constexpr int VIEWPORT_HEIGHT = 800;
 
     constexpr int NES_WIDTH = 256;
     constexpr int NES_HEIGHT = 240;
-
-    constexpr int PADDING = 5;
-    constexpr int TEXT_START = 2*PADDING + NES_WIDTH + 10;
-    constexpr int INSTRUCTIONS_START = 400;
 }
 
 NesFrontend::NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes") {
@@ -38,16 +34,25 @@ NesFrontend::NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes
         SDL_GetDisplayBounds(i, &displays[i]);
     }
 
-    int x = displays.back().x + 200;
-    int y = displays.back().y + 200;
+    int window_x = displays.back().x + 200;
+    int window_y = displays.back().y + 200;
 
-    window = SDL_CreateWindow("NES", x, y, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, 0);
+    window = SDL_CreateWindow("NES", window_x, window_y, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, 0);
     if (!window) {
         panic("could not create window");
     }
 
     window_surface = SDL_GetWindowSurface(window);
     ASSERT(window_surface, "expected window surface");
+
+    selected_palette_surface = gfx::create_surface(20, 8);
+    SDL_LockSurface(selected_palette_surface);
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 20; x++) {
+            gfx::set_pixel(selected_palette_surface, x, y, SDL_Color{127, 127, 127});
+        }
+    }
+    SDL_UnlockSurface(selected_palette_surface);
 
     init_cpu();
     disassembly = R6502::disassemble(bus, 0x8000, 0xd000);
@@ -87,21 +92,25 @@ bool NesFrontend::update() {
 
     render_cpu();
 
+    constexpr int GAME_SCALE = 3;
     auto screen = bus.ppu.render_screen();
-    SDL_Rect dst = {PADDING, PADDING, screen->w, screen->h};
-    SDL_BlitSurface(screen, nullptr, window_surface, &dst);
+    SDL_Rect dst = {5, 5, screen->w*GAME_SCALE, screen->h*GAME_SCALE};
+    SDL_BlitScaled(screen, nullptr, window_surface, &dst);
 
     auto pattern = bus.ppu.render_pattern_table(0, current_palette);
-    dst = {PADDING, 250, pattern->w, pattern->h};
+    dst = {780, 597, pattern->w, pattern->h};
     SDL_BlitSurface(pattern, nullptr, window_surface, &dst);
 
     pattern = bus.ppu.render_pattern_table(1, current_palette);
-    dst = {PADDING+130, 250, pattern->w, pattern->h};
+    dst = {910, 597, pattern->w, pattern->h};
     SDL_BlitSurface(pattern, nullptr, window_surface, &dst);
+
+    dst = {780+current_palette*20-2, 589-2, pattern->w, pattern->h};
+    SDL_BlitSurface(selected_palette_surface, nullptr, window_surface, &dst);
 
     for (int i = 0; i < 8; i++) {
         auto palette = bus.ppu.render_palette(i);
-        dst = {PADDING + i*20, 380, pattern->w, pattern->h};
+        dst = {780+i*20, 589, pattern->w, pattern->h};
         SDL_BlitSurface(palette, nullptr, window_surface, &dst);
     }
 
@@ -148,6 +157,7 @@ void NesFrontend::render_cpu() {
     auto &cpu = bus.cpu;
     auto status = status_to_string(cpu.status);
 
+    constexpr int TEXT_START = 1040;
     // render cpu status
     render_text(TEXT_START, 5,
                 string_printf("Status = %02x = %s", cpu.status, status.c_str()));
@@ -163,12 +173,12 @@ void NesFrontend::render_cpu() {
 
     // render instructions
     int y = 0;
-    render_text(5, INSTRUCTIONS_START+(y++)*20, "C = clock once");
-    render_text(5, INSTRUCTIONS_START+(y++)*20, "N = step once");
-    render_text(5, INSTRUCTIONS_START+(y++)*20, "F = render once");
-    render_text(5, INSTRUCTIONS_START+(y++)*20, "SPACE = start/stop");
-    render_text(5, INSTRUCTIONS_START+(y++)*20, "R = reset");
-    render_text(5, INSTRUCTIONS_START+(y++)*20, "P = change palette");
+    render_text(780, 5+(y++)*20, "C = clock once");
+    render_text(780, 5+(y++)*20, "N = step once");
+    render_text(780, 5+(y++)*20, "F = render once");
+    render_text(780, 5+(y++)*20, "SPACE = start/stop");
+    render_text(780, 5+(y++)*20, "R = reset");
+    render_text(780, 5+(y++)*20, "P = change palette");
 
     // render disassembly
     auto render_disassembly = [&](int y) {
@@ -217,9 +227,6 @@ void NesFrontend::render_cpu() {
             render_text(x, mem_y * 20 + y + 20, row);
         }
     };
-
-    render_memory(0x0000, "Zero page:", TEXT_START + 350, 5);
-    render_memory(0x8000, "$8000:", TEXT_START + 350, 350);
 }
 
 extern "C" {

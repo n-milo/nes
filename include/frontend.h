@@ -11,6 +11,7 @@ class NesFrontend {
 public:
     SDL_Window *window;
     SDL_Surface *window_surface;
+    SDL_Surface *selected_palette_surface;
 
     Font font;
 
