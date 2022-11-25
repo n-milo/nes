@@ -65,7 +65,8 @@ class PPU {
     int cycle = 0;
 
     SDL_Surface *screen;
-    SDL_Surface *pattern_tables[2];
+    SDL_Surface *pattern_tables[2] = {};
+    SDL_Surface *palettes[8] = {};
 
 public:
     bool finished_frame = false;
@@ -79,8 +80,9 @@ public:
 
     SDL_Surface *render_screen();
     SDL_Surface *render_pattern_table(int table, uint8 palette);
+    SDL_Surface *render_palette(int palette);
 
     SDL_Color color_from_palette(uint8 palette, uint8 pixel);
 
-    void clock();
+    void clock(bool &nmi_requested);
 };

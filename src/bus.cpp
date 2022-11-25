@@ -8,7 +8,6 @@ void Bus::write(uint16 addr, uint8 data) {
     } else if (addr >= PPU_START && addr <= PPU_END) {
         ppu.cpu_write(addr & 0x7, data);
     } else {
-        fprintf(stderr, "warning: invalid write to %04x\n", addr);
     }
 }
 
@@ -20,16 +19,21 @@ uint8 Bus::read(uint16 addr) {
     } else if (addr >= PPU_START && addr <= PPU_END) {
         return ppu.cpu_read(addr & 0x7);
     } else {
-        fprintf(stderr, "warning: invalid read from %04x\n", addr);
         return 0;
     }
 }
 
 void Bus::clock() {
-    ppu.clock();
+    bool nmi_requested = false;
+    ppu.clock(nmi_requested);
     if (system_clock % 3 == 0) { // cpu clocks at 1/3rd the rate of the ppu
         cpu.clock(*this);
     }
+
+    if (nmi_requested) {
+        cpu.nmi(*this);
+    }
+
     system_clock++;
 }
 

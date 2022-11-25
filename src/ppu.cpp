@@ -7,6 +7,8 @@ PPU::PPU(Cartridge *cartridge) : cartridge(cartridge) {
     screen = gfx::create_surface(256, 240);
     pattern_tables[0] = gfx::create_surface(128, 128);
     pattern_tables[1] = gfx::create_surface(128, 128);
+    for (int i = 0; i < 8; i++)
+        palettes[i] = gfx::create_surface(16, 4);
     ASSERT(screen, "failed to create surface");
 }
 
@@ -20,12 +22,11 @@ void PPU::ppu_write(uint16 addr, uint8 data) {
     } else if (addr >= PALETTE_START && addr <= PALETTE_END) {
         addr &= 0x1f;
         if (addr == 0x10) addr = 0x0;
-        if (addr == 0x14) addr = 0x4;
-        if (addr == 0x18) addr = 0x8;
-        if (addr == 0x1c) addr = 0xc;
+        else if (addr == 0x14) addr = 0x4;
+        else if (addr == 0x18) addr = 0x8;
+        else if (addr == 0x1c) addr = 0xc;
         palette_mem[addr] = data;
     } else {
-        fprintf(stderr, "warning: invalid write to %04x\n", addr);
     }
 }
 
@@ -44,7 +45,6 @@ uint8 PPU::ppu_read(uint16 addr) {
         if (addr == 0x1c) addr = 0xc;
         return palette_mem[addr];
     } else {
-        fprintf(stderr, "warning: invalid read from %04x\n", addr);
     }
     return 0;
 }
@@ -95,7 +95,6 @@ uint8 PPU::cpu_read(uint16 addr) {
     case 1:
         break;
     case 2: {
-        status.vertical_blank = 1; // hack
         uint8 ret = (status.value & 0xe0) | (data_buffer & 0x1f);
         status.vertical_blank = 0;
         next_address_is_lsb = false;
@@ -114,10 +113,11 @@ uint8 PPU::cpu_read(uint16 addr) {
     case 7:
         // all reads except the palette memory are delayed by one frame
         if (combined_address > 0x3f00) {
+            data_buffer = ppu_read(combined_address++);
             return data_buffer;
         } else {
             uint8 old = data_buffer;
-            data_buffer = ppu_read(combined_address);
+            data_buffer = ppu_read(combined_address++);
             return old;
         }
 
@@ -163,12 +163,35 @@ SDL_Surface *PPU::render_pattern_table(int table, uint8 palette) {
     return surface;
 }
 
-SDL_Color PPU::color_from_palette(uint8 palette, uint8 pixel) {
-    uint8 index = ppu_read(0x3f00 + (palette << 2) + pixel);
-    return palette_array[index];
+SDL_Surface *PPU::render_palette(int palette) {
+    auto surface = palettes[palette];
+    SDL_LockSurface(surface);
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 16; x++) {
+            int color_index = x / 4;
+            auto color = color_from_palette((uint8) palette, (uint8) color_index);
+            gfx::set_pixel(surface, x, y, color);
+        }
+    }
+    SDL_UnlockSurface(surface);
+    return surface;
 }
 
-void PPU::clock() {
+SDL_Color PPU::color_from_palette(uint8 palette, uint8 pixel) {
+    uint8 index = ppu_read(0x3f00 + (palette << 2) + pixel);
+    return palette_array[index % 64];
+}
+
+void PPU::clock(bool &nmi_requested) {
+    if (scanline == -1 && cycle == 1) {
+        status.vertical_blank = 0;
+    } else if (scanline == 241 && cycle == 1) {
+        status.vertical_blank = 1;
+        if (control.nmi_on_vblank) {
+            nmi_requested = true;
+        }
+    }
+
     int x = cycle-1;
     int y = scanline;
     if (gfx::in_bounds(screen, x, y)) {

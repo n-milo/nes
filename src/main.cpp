@@ -32,7 +32,6 @@ class NesFrontend {
 public:
     SDL_Window *window;
     SDL_Surface *window_surface;
-//    SDL_Surface *screen;
 
     Font font;
 
@@ -43,6 +42,7 @@ public:
     bool full_speed = false;
     int frames = 0;
     float frame_time = 0;
+    int current_palette = 0;
 
     NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes") {
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -102,14 +102,19 @@ public:
         SDL_Rect dst = {PADDING, PADDING, screen->w, screen->h};
         SDL_BlitSurface(screen, nullptr, window_surface, &dst);
 
-        auto pattern = bus.ppu.render_pattern_table(0, 0);
+        auto pattern = bus.ppu.render_pattern_table(0, current_palette);
         dst = {PADDING, 250, pattern->w, pattern->h};
         SDL_BlitSurface(pattern, nullptr, window_surface, &dst);
 
-        pattern = bus.ppu.render_pattern_table(1, 0);
+        pattern = bus.ppu.render_pattern_table(1, current_palette);
         dst = {PADDING+130, 250, pattern->w, pattern->h};
         SDL_BlitSurface(pattern, nullptr, window_surface, &dst);
 
+        for (int i = 0; i < 8; i++) {
+            auto palette = bus.ppu.render_palette(i);
+            dst = {PADDING + i*20, 380, pattern->w, pattern->h};
+            SDL_BlitSurface(palette, nullptr, window_surface, &dst);
+        }
 
         SDL_UpdateWindowSurface(window);
 
@@ -126,6 +131,8 @@ public:
                     full_speed = !full_speed;
                 } else if (event.key.keysym.sym == SDLK_r) {
                     bus.reset();
+                } else if (event.key.keysym.sym == SDLK_p) {
+                    current_palette = (current_palette+1) % 8;
                 }
 
                 if (!full_speed) {
@@ -166,11 +173,13 @@ public:
                     string_printf("Cycles = %d", cpu.cycles));
 
         // render instructions
-        render_text(5, INSTRUCTIONS_START+0,  "C = clock once");
-        render_text(5, INSTRUCTIONS_START+20, "N = step once");
-        render_text(5, INSTRUCTIONS_START+40, "F = render once");
-        render_text(5, INSTRUCTIONS_START+60, "SPACE = start/stop");
-        render_text(5, INSTRUCTIONS_START+80, "R = reset");
+        int y = 0;
+        render_text(5, INSTRUCTIONS_START+(y++)*20,  "C = clock once");
+        render_text(5, INSTRUCTIONS_START+(y++)*20, "N = step once");
+        render_text(5, INSTRUCTIONS_START+(y++)*20, "F = render once");
+        render_text(5, INSTRUCTIONS_START+(y++)*20, "SPACE = start/stop");
+        render_text(5, INSTRUCTIONS_START+(y++)*20, "R = reset");
+        render_text(5, INSTRUCTIONS_START+(y++)*20, "P = change palette");
 
         // render disassembly
         auto render_disassembly = [&](int y) {
