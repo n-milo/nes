@@ -108,7 +108,7 @@ void PPU::cpu_write(uint16 addr, uint8 data) {
         break;
 
     case 7:
-x        ppu_write(combined_address, data);
+        ppu_write(combined_address, data);
 //        combined_address += (control.vram_addr_increment ? 32 : 1);
         break;
 
