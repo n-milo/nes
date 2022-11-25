@@ -502,12 +502,10 @@ bool R6502::calculate_operation(Bus &bus,
 
     // nop
 
-    case NOP: // No OPeration
-        return false;
-
     default:
+    case NOP: // No OPeration
     case XXX:
-        panic("illegal instruction at 0x%x", pc);
+        return false;
     }
 }
 

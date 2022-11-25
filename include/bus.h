@@ -12,6 +12,9 @@
 #define PPU_START 0x2000
 #define PPU_END   0x3FFF
 
+#define CONTROLLER_START 0x4016
+#define CONTROLLER_END   0x4017
+
 class Bus {
 public:
     Cartridge cartridge;
@@ -21,6 +24,9 @@ public:
     uint64 system_clock = 0;
 
     std::vector<uint8> ram;
+
+    uint8 controller[2] = {};
+    uint8 controller_saved_state[2] = {};
 
     explicit Bus(const char *file) : Bus(Cartridge::load_cartridge(file)) {}
 

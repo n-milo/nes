@@ -7,7 +7,8 @@ void Bus::write(uint16 addr, uint8 data) {
         ram[addr & 0x7ff] = data;
     } else if (addr >= PPU_START && addr <= PPU_END) {
         ppu.cpu_write(addr & 0x7, data);
-    } else {
+    } else if (addr >= CONTROLLER_START && addr <= CONTROLLER_END) {
+        controller_saved_state[addr & 1] = controller[addr & 1];
     }
 }
 
@@ -18,9 +19,12 @@ uint8 Bus::read(uint16 addr) {
         return ram[addr & 0x7ff];
     } else if (addr >= PPU_START && addr <= PPU_END) {
         return ppu.cpu_read(addr & 0x7);
-    } else {
-        return 0;
+    } else if (addr >= CONTROLLER_START && addr <= CONTROLLER_END) {
+        uint8 data = !!(controller_saved_state[addr & 1] & 0x80);
+        controller_saved_state[addr & 1] <<= 1;
+        return data;
     }
+    return 0;
 }
 
 void Bus::clock() {

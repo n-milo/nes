@@ -144,13 +144,35 @@ bool NesFrontend::update() {
 
     SDL_UpdateWindowSurface(window);
 
+    auto key_to_controller_bit = [](SDL_Keycode keycode) {
+        switch (keycode) {
+
+        case SDLK_x: return 0x80;
+        case SDLK_z: return 0x40;
+        case SDLK_a: return 0x20; // select
+        case SDLK_s: return 0x10; // start
+        case SDLK_UP: return 0x8;
+        case SDLK_DOWN: return 0x4;
+        case SDLK_LEFT: return 0x2;
+        case SDLK_RIGHT: return 0x1;
+        default: return 0;
+
+        }
+    };
+
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
             return true;
 
+        case SDL_KEYUP:
+            bus.controller[0] &= ~key_to_controller_bit(event.key.keysym.sym);
+            break;
+
         case SDL_KEYDOWN:
+            bus.controller[0] |= key_to_controller_bit(event.key.keysym.sym);
+
             if (event.key.keysym.sym == SDLK_ESCAPE) {
                 return true;
             } else if (event.key.keysym.sym == SDLK_SPACE) {
