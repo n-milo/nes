@@ -234,21 +234,31 @@ bool R6502::calculate_operation(Bus &bus,
 
     case TAX:
         x = a;
+        set_flag(N, x & 0x80);
+        set_flag(Z, x == 0);
         return false;
     case TAY:
         y = a;
+        set_flag(N, y & 0x80);
+        set_flag(Z, y == 0);
         return false;
     case TSX:
         x = sp;
+        set_flag(N, x & 0x80);
+        set_flag(Z, x == 0);
         return false;
     case TXA:
         a = x;
+        set_flag(N, a & 0x80);
+        set_flag(Z, a == 0);
         return false;
     case TXS:
         sp = x;
         return false;
     case TYA:
         a = y;
+        set_flag(N, a & 0x80);
+        set_flag(Z, a == 0);
         return false;
 
     // stack
@@ -258,7 +268,9 @@ bool R6502::calculate_operation(Bus &bus,
         return false;
 
     case PHP:
-        write(bus, 0x100 + sp--, status);
+        write(bus, 0x100 + sp--, status | B | U);
+        set_flag(B, false);
+        set_flag(U, false);
         return false;
 
     case PLA:
