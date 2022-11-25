@@ -113,6 +113,7 @@ bool NesFrontend::update() {
                     snprintf(buf, 3, "%02X", id);
                     auto text = Font::the_font().render_text(buf, SDL_Color{255, 255, 255}, 2);
                     SDL_BlitSurface(text, nullptr, window_surface, &dst);
+                    SDL_FreeSurface(text);
                 } else {
                     SDL_Rect src = {(id & 0xf) << 3, ((id >> 4) & 0xf) << 3, 8, 8};
                     SDL_BlitScaled(visualization == ScreenVisualization::Patterns0 ? pattern0 : pattern1,
