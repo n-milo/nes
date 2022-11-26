@@ -224,7 +224,7 @@ void NesFrontend::render_cpu() {
     auto &cpu = bus.cpu;
     auto status = status_to_string(cpu.status);
 
-    constexpr int TEXT_START = 1040;
+    constexpr int TEXT_START = 1100;
     // render cpu status
     render_text(TEXT_START, 5,
                 string_printf("Status = %02x = %s", cpu.status, status.c_str()));
