@@ -72,10 +72,6 @@ void R6502::clock(Bus &bus) {
 }
 
 void R6502::reset(Bus &bus) noexcept {
-    bool saved_breakpoints_enabled = breakpoints_enabled;
-    breakpoints_enabled = false;
-    defer { breakpoints_enabled = saved_breakpoints_enabled; };
-
     a = x = y = 0;
     sp = 0xFD;
     status = U;
@@ -100,10 +96,6 @@ void R6502::nmi(Bus &bus) noexcept {
 }
 
 void R6502::do_interrupt(Bus &bus, uint16 vector) {
-    bool saved_breakpoints_enabled = breakpoints_enabled;
-    breakpoints_enabled = false;
-    defer { breakpoints_enabled = saved_breakpoints_enabled; };
-
     write(bus, 0x100 + sp--, pc >> 8);
     write(bus, 0x100 + sp--, pc & 0xFF);
 
@@ -585,14 +577,14 @@ uint8 R6502::do_addition(uint8 src_reg, uint8 operand) {
 }
 
 uint8 R6502::read(Bus &bus, uint16 addr) {
-    if (breakpoints_enabled && std::find(address_read_breakpoints.begin(), address_read_breakpoints.end(), addr) != address_read_breakpoints.end()) {
+    if (bus.breakpoints_enabled && std::find(address_read_breakpoints.begin(), address_read_breakpoints.end(), addr) != address_read_breakpoints.end()) {
         throw BreakpointException{};
     }
     return bus.read(addr);
 }
 
 void R6502::write(Bus &bus, uint16 addr, uint8 data) {
-    if (breakpoints_enabled && std::find(address_write_breakpoints.begin(), address_write_breakpoints.end(), addr) != address_write_breakpoints.end()) {
+    if (bus.breakpoints_enabled && std::find(address_write_breakpoints.begin(), address_write_breakpoints.end(), addr) != address_write_breakpoints.end()) {
         throw BreakpointException{};
     }
     bus.write(addr, data);

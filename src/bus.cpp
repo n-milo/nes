@@ -47,6 +47,10 @@ void Bus::clock() {
 }
 
 void Bus::reset() {
+    bool saved_breakpoints_enabled = breakpoints_enabled;
+    breakpoints_enabled = false;
+    defer { breakpoints_enabled = saved_breakpoints_enabled; };
+
     cpu.reset(*this);
 }
 

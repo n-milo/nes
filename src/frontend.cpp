@@ -19,7 +19,7 @@ namespace {
     constexpr int NES_HEIGHT = 240;
 }
 
-NesFrontend::NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes") {
+NesFrontend::NesFrontend() : font("monogram-bitmap.json"), bus("roms/donkeykong.nes") {
     Font::the_font() = font;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -57,12 +57,12 @@ NesFrontend::NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes
     SDL_UnlockSurface(selected_palette_surface);
 
     init_cpu();
-    disassembly = R6502::disassemble(bus, 0x8000, 0xd000);
+    disassembly = R6502::disassemble(bus, 0x0000, 0xfff0);
 
     last_time = SDL_GetPerformanceCounter();
 
-    for (uint16 i = 0x2000; i <= 0x2007; i++) {
-        bus.cpu.address_write_breakpoints.push_back(i);
+    for (uint16 i = 0x3f00; i <= 0x3f0f; i++) {
+        bus.ppu.address_write_breakpoints.push_back(i);
     }
 
     LOG_INFO("Frontend initialized successfully.");
@@ -82,7 +82,7 @@ bool NesFrontend::update() {
     float delta = (float) (now-last_time) / (float) SDL_GetPerformanceFrequency();
     last_time = now;
 
-    bus.cpu.breakpoints_enabled = full_speed && breakpoints_enabled;
+    bus.breakpoints_enabled = full_speed && breakpoints_enabled;
 
     if (full_speed) {
         try {
@@ -90,7 +90,7 @@ bool NesFrontend::update() {
             bus.execute_one_frame();
         } catch (const BreakpointException &e) {
             full_speed = false;
-            bus.cpu.breakpoints_enabled = false;
+            bus.breakpoints_enabled = false;
         }
     }
 
@@ -185,6 +185,17 @@ bool NesFrontend::update() {
         case SDL_KEYDOWN:
             bus.controller[0] |= key_to_controller_bit(event.key.keysym.sym);
 
+            if (!full_speed) {
+                ASSERT(!bus.breakpoints_enabled, "no breakpoints in single-step mode");
+                if (event.key.keysym.sym == SDLK_c) {
+                    bus.clock();
+                } else if (event.key.keysym.sym == SDLK_n) {
+                    bus.execute_one_instruction();
+                } else if (event.key.keysym.sym == SDLK_f) {
+                    bus.execute_one_frame();
+                }
+            }
+
             if (event.key.keysym.sym == SDLK_ESCAPE) {
                 return true;
             } else if (event.key.keysym.sym == SDLK_SPACE) {
@@ -197,17 +208,6 @@ bool NesFrontend::update() {
                 ++visualization;
             } else if (event.key.keysym.sym == SDLK_b) {
                 breakpoints_enabled = !breakpoints_enabled;
-            }
-
-            if (!full_speed) {
-                ASSERT(!bus.cpu.breakpoints_enabled, "no breakpoints in single-step mode");
-                if (event.key.keysym.sym == SDLK_c) {
-                    bus.clock();
-                } else if (event.key.keysym.sym == SDLK_n) {
-                    bus.execute_one_instruction();
-                } else if (event.key.keysym.sym == SDLK_f) {
-                    bus.execute_one_frame();
-                }
             }
             break;
         }
@@ -252,6 +252,24 @@ void NesFrontend::render_cpu() {
     render_text(780, 5+(y++)*20, "SPACE = start/stop");
     render_text(780, 5+(y++)*20, "R = reset");
     render_text(780, 5+(y++)*20, "P = change palette");
+    render_text(780, 5+(y++)*20, "V = change visualization");
+    switch (visualization) {
+
+    case ScreenVisualization::Display:
+        render_text(780, 5+(y++)*20, "  (current = display)");
+        break;
+    case ScreenVisualization::NametableID:
+        render_text(780, 5+(y++)*20, "  (current = nametable)");
+        break;
+    case ScreenVisualization::Patterns0:
+        render_text(780, 5+(y++)*20, "  (current = pattern 0)");
+        break;
+    case ScreenVisualization::Patterns1:
+        render_text(780, 5+(y++)*20, "  (current = pattern 1)");
+        break;
+    }
+    render_text(780, 5+(y++)*20, "B = toggle breakpoints");
+    render_text(780, 5+(y++)*20, string_printf("  (current = %s)", breakpoints_enabled ? "ON" : "OFF"));
 
     // render disassembly
     auto render_disassembly = [&](int y) {

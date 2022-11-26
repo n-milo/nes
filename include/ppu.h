@@ -12,7 +12,10 @@
 #define PALETTE_START 0x3F00
 #define PALETTE_END   0x3FFF
 
+class Bus;
+
 class PPU {
+    Bus &bus;
     Cartridge *cartridge;
 
     union {
@@ -77,12 +80,15 @@ public:
     uint8 internal_read_buffer = 0;
     render_register vram_addr, tram_addr;
 
+    std::vector<uint16> address_read_breakpoints;
+    std::vector<uint16> address_write_breakpoints;
+
     uint8 name_table_mem[2][1024] = {};
     uint8 palette_mem[32] = {};
 
     bool finished_frame = false;
 
-    explicit PPU(Cartridge *cartridge);
+    explicit PPU(Bus &bus, Cartridge *cartridge);
 
     void ppu_write(uint16 addr, uint8 data);
     uint8 ppu_read(uint16 addr);

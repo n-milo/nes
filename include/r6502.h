@@ -109,7 +109,6 @@ public:
     bool finished_instruction = false;
 
     // emulator pauses execution when the cpu touches any of these addresses
-    bool breakpoints_enabled = false;
     std::vector<uint16> address_read_breakpoints;
     std::vector<uint16> address_write_breakpoints;
 

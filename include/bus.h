@@ -28,12 +28,14 @@ public:
     uint8 controller[2] = {};
     uint8 controller_saved_state[2] = {};
 
+    bool breakpoints_enabled = false;
+
     explicit Bus(const char *file) : Bus(Cartridge::load_cartridge(file)) {}
 
     explicit Bus(Cartridge &&cartridge)
         : cartridge(std::move(cartridge))
         , ram(2 * 1024)
-        , ppu(&this->cartridge)
+        , ppu(*this, &this->cartridge)
     {}
 
     ~Bus() = default;
