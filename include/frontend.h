@@ -32,6 +32,7 @@ public:
 
     uint64 last_time;
     bool full_speed = false;
+    bool breakpoints_enabled = false;
     int frames = 0;
     float frame_time = 0;
     int current_palette = 0;

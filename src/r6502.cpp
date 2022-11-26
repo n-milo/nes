@@ -52,7 +52,13 @@ void R6502::clock(Bus &bus) {
 
         default:
             addr = calculate_address(bus, instr.addr_mode, page_crossed);
-            operand = read(bus, *addr);
+            if (instr.opcode == STA || instr.opcode == STX || instr.opcode == STY) {
+                // store instructions shouldn't read
+                // all other instructions will actually read from the address
+                operand = 0;
+            } else {
+                operand = read(bus, *addr);
+            }
             break;
 
         }

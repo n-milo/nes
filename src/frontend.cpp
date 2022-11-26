@@ -82,7 +82,7 @@ bool NesFrontend::update() {
     float delta = (float) (now-last_time) / (float) SDL_GetPerformanceFrequency();
     last_time = now;
 
-    bus.cpu.breakpoints_enabled = full_speed;
+    bus.cpu.breakpoints_enabled = full_speed && breakpoints_enabled;
 
     if (full_speed) {
         try {
@@ -195,6 +195,8 @@ bool NesFrontend::update() {
                 current_palette = (current_palette+1) % 8;
             } else if (event.key.keysym.sym == SDLK_v) {
                 ++visualization;
+            } else if (event.key.keysym.sym == SDLK_b) {
+                breakpoints_enabled = !breakpoints_enabled;
             }
 
             if (!full_speed) {
