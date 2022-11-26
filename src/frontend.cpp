@@ -61,6 +61,10 @@ NesFrontend::NesFrontend() : font("monogram-bitmap.json"), bus("roms/nestest.nes
 
     last_time = SDL_GetPerformanceCounter();
 
+    for (uint16 i = 0x2000; i <= 0x2007; i++) {
+        bus.cpu.address_write_breakpoints.push_back(i);
+    }
+
     LOG_INFO("Frontend initialized successfully.");
 }
 
@@ -78,16 +82,24 @@ bool NesFrontend::update() {
     float delta = (float) (now-last_time) / (float) SDL_GetPerformanceFrequency();
     last_time = now;
 
+    bus.cpu.breakpoints_enabled = full_speed;
+
     if (full_speed) {
-        // TODO: timing so it goes at 60 Hz
-        bus.execute_one_frame();
-        frames++;
-        frame_time += delta;
-        if (frame_time >= 1.0f) {
-            frame_time -= 1.0f;
-            LOG_INFO("%d fps", frames);
-            frames = 0;
+        try {
+            // TODO: timing so it goes at 60 Hz
+            bus.execute_one_frame();
+        } catch (const BreakpointException &e) {
+            full_speed = false;
+            bus.cpu.breakpoints_enabled = false;
         }
+    }
+
+    frames++;
+    frame_time += delta;
+    if (frame_time >= 1.0f) {
+        frame_time -= 1.0f;
+        LOG_TRACE("%d fps", frames);
+        frames = 0;
     }
 
     SDL_FillRect(window_surface, nullptr, 0);
@@ -186,6 +198,7 @@ bool NesFrontend::update() {
             }
 
             if (!full_speed) {
+                ASSERT(!bus.cpu.breakpoints_enabled, "no breakpoints in single-step mode");
                 if (event.key.keysym.sym == SDLK_c) {
                     bus.clock();
                 } else if (event.key.keysym.sym == SDLK_n) {
@@ -222,6 +235,12 @@ void NesFrontend::render_cpu() {
 
     render_text(TEXT_START, 65,
                 string_printf("Cycles = %d", cpu.cycles));
+
+    render_text(TEXT_START, 85,
+                string_printf("PPU addr = $%04x", bus.ppu.vram_addr.value));
+
+    render_text(TEXT_START, 105,
+                string_printf("PPU data = $%02x", bus.ppu.internal_read_buffer));
 
     // render instructions
     int y = 0;
@@ -263,7 +282,7 @@ void NesFrontend::render_cpu() {
             render_text(TEXT_START, y + (i+11)*20, string_printf("$%04x: %s", next->first, next->second.c_str()), white);
         }
     };
-    render_disassembly(100);
+    render_disassembly(170);
 
     auto render_memory = [&](uint16 start_addr, const char *name, int x, int y) {
         render_text(x, y, name);

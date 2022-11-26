@@ -1,6 +1,7 @@
 #include "bus.h"
 
 void Bus::write(uint16 addr, uint8 data) {
+    LOG_TRACE("[$%04x] <- %02x", addr, data);
     if (cartridge.cpu_write(addr, data)) {
         // TODO
     } else if (addr >= RAM_START && addr <= RAM_END) {
@@ -13,18 +14,22 @@ void Bus::write(uint16 addr, uint8 data) {
 }
 
 uint8 Bus::read(uint16 addr) {
-    if (auto data = cartridge.cpu_read(addr); data.has_value()) {
-        return *data;
+    uint8 data = 0;
+    std::optional<uint8> cartridge_data = cartridge.cpu_read(addr);
+
+    if (cartridge_data.has_value()) {
+        data = *cartridge_data;
     } else if (addr >= RAM_START && addr <= RAM_END) {
-        return ram[addr & 0x7ff];
+        data = ram[addr & 0x7ff];
     } else if (addr >= PPU_START && addr <= PPU_END) {
-        return ppu.cpu_read(addr & 0x7);
+        data = ppu.cpu_read(addr & 0x7);
     } else if (addr >= CONTROLLER_START && addr <= CONTROLLER_END) {
-        uint8 data = !!(controller_saved_state[addr & 1] & 0x80);
+        data = !!(controller_saved_state[addr & 1] & 0x80);
         controller_saved_state[addr & 1] <<= 1;
-        return data;
     }
-    return 0;
+
+    LOG_TRACE("[$%04x] -> %02x", addr, data);
+    return data;
 }
 
 void Bus::clock() {

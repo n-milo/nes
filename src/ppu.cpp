@@ -99,17 +99,17 @@ void PPU::cpu_write(uint16 addr, uint8 data) {
 
     case 6:
         if (next_address_is_lsb) {
-            combined_address = (combined_address & 0xFF00) | data;
+            vram_addr.value = (vram_addr.value & 0xFF00) | data;
             next_address_is_lsb = false;
         } else {
-            combined_address = (combined_address & 0xFF) | (data << 8);
+            vram_addr.value = (vram_addr.value & 0xFF) | (data << 8);
             next_address_is_lsb = true;
         }
         break;
 
     case 7:
-        ppu_write(combined_address, data);
-//        combined_address += (control.vram_addr_increment ? 32 : 1);
+        ppu_write(vram_addr.value, data);
+        vram_addr.value += (control.vram_addr_increment ? 32 : 1);
         break;
 
     default:
@@ -126,7 +126,7 @@ uint8 PPU::cpu_read(uint16 addr) {
     case 1:
         break;
     case 2: {
-        uint8 ret = (status.value & 0xe0) | (data_buffer & 0x1f);
+        uint8 ret = (status.value & 0xe0) | (internal_read_buffer & 0x1f);
         status.vertical_blank = 0;
         next_address_is_lsb = false;
         return ret;
@@ -143,12 +143,12 @@ uint8 PPU::cpu_read(uint16 addr) {
 
     case 7: {
         // all reads except the palette memory are delayed by one frame
-        uint8 data = data_buffer;
-        data_buffer = ppu_read(combined_address);
-        if (combined_address >= 0x3f00)
-            data = data_buffer;
+        uint8 data = internal_read_buffer;
+        internal_read_buffer = ppu_read(vram_addr.value);
+        if (vram_addr.value >= 0x3f00)
+            data = internal_read_buffer;
 
-        combined_address += (control.vram_addr_increment ? 32 : 1);
+        vram_addr.value += (control.vram_addr_increment ? 32 : 1);
         return data;
     }
 

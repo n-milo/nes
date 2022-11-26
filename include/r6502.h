@@ -4,6 +4,8 @@
 #include <optional>
 #include <map>
 #include <string>
+#include <vector>
+#include <exception>
 
 #include "common.h"
 
@@ -65,6 +67,10 @@ enum Flags {
 
 std::string status_to_string(uint8 status);
 
+struct BreakpointException : std::exception {
+
+};
+
 class R6502 {
 
     void do_interrupt(Bus &bus, uint16 start_addr);
@@ -90,8 +96,8 @@ class R6502 {
     void do_branch(bool condition, int8 relative_addr);
     uint8 do_addition(uint8 src_reg, uint8 operand);
 
-    uint8 read(Bus &bus, uint16 addr);
-    void write(Bus &bus, uint16 addr, uint8 data);
+    uint8 read(Bus &bus, uint16 addr); // throws BreakpointException
+    void write(Bus &bus, uint16 addr, uint8 data); // throws BreakpointException
 
 public:
     // internal processor registers
@@ -102,11 +108,16 @@ public:
     uint8 last_executed_opcode = 0;
     bool finished_instruction = false;
 
+    // emulator pauses execution when the cpu touches any of these addresses
+    bool breakpoints_enabled = false;
+    std::vector<uint16> address_read_breakpoints;
+    std::vector<uint16> address_write_breakpoints;
+
     // signals for the processor
-    bool clock(Bus &bus);
-    void reset(Bus &bus);
-    void irq(Bus &bus);
-    void nmi(Bus &bus);
+    void clock(Bus &bus);
+    void reset(Bus &bus) noexcept;
+    void irq(Bus &bus) noexcept;
+    void nmi(Bus &bus) noexcept;
 
     /// Disassembles one instruction at addr, and then moves addr to point to the end of the instruction.
     static std::string disassemble_instruction(Bus &bus, uint16 &addr);
